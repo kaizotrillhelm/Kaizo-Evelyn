@@ -25,6 +25,8 @@
   var TASKLIST = String(arg("tasks", "cube,solar,island")).split(",");
   var OUT = path.resolve(arg("out", path.join(__dirname, "..", "..", "tests", "tmp", "threejs_bench_results.json")));
   var SYSTEM = "You are a careful three.js engineer.";
+  var LABEL = String(arg("label", ""));
+  var SERVER_CTX = null;   /* filled from /props before the first run */
 
   var store = new S.OffsetShelfStore();
   store.buildFromRecords(TT.NOTES);
@@ -58,7 +60,8 @@
     loop.run(TT.TASKS[job.task].text, function (err, r) {
       if (err) return cb({ ok: false, firstDraftOk: false, calls: 0, rounds: 0, tokens: tokens, ms: Date.now() - t0, errors: [String(err.message || err)] });
       var last = r.history[r.history.length - 1];
-      cb({ ok: r.ok, firstDraftOk: r.firstDraftOk, calls: r.calls, rounds: r.rounds, tokens: tokens, ms: Date.now() - t0, errors: r.ok ? [] : last.errors, code: r.code, hits: r.hits, effort: r.effort });
+      cb({ ok: r.ok, firstDraftOk: r.firstDraftOk, calls: r.calls, rounds: r.rounds, tokens: tokens, ms: Date.now() - t0, errors: r.ok ? [] : last.errors, code: r.code, hits: r.hits, effort: r.effort,
+        efforts: r.efforts, callTokens: r.tokens, exhausted: r.exhausted, features: r.features });
     });
   }
 
@@ -84,7 +87,7 @@
       results.forEach(function (r) { var k = r.task + "/" + r.cond; byTask[k] = (byTask[k] || "") + (r.ok ? "P" : "F") + (r.firstDraftOk ? "" : (r.ok ? "(repaired)" : "")); });
       console.log("per task (P pass, F fail; first draft failed but fixed shown as repaired):");
       Object.keys(byTask).forEach(function (k) { console.log("  " + k.padEnd(14) + byTask[k]); });
-      fs.writeFileSync(OUT, JSON.stringify({ port: PORT, trials: TRIALS, results: results }, null, 1));
+      fs.writeFileSync(OUT, JSON.stringify({ port: PORT, trials: TRIALS, serverCtx: SERVER_CTX, label: LABEL, results: results }, null, 1));
       console.log("results written to " + OUT);
       process.exit(0);
     }
@@ -96,10 +99,17 @@
       console.log("[" + idx + "/" + jobs.length + "] " + job.task.padEnd(7) + " " + job.cond.padEnd(6) + " trial " + job.trial + ": " + (r.ok ? "PASS" : "FAIL") +
         (r.firstDraftOk ? " (first draft)" : (r.ok ? " (after " + r.rounds + " repair" + (r.rounds > 1 ? "s" : "") + ")" : "")) +
         "  calls " + r.calls + ", " + r.tokens + " tokens, " + (r.ms / 1000).toFixed(0) + " s" + (r.ok ? "" : "  | " + String(r.errors[0] || "").slice(0, 110)));
-      fs.writeFileSync(OUT, JSON.stringify({ port: PORT, trials: TRIALS, partial: true, results: results }, null, 1));
+      fs.writeFileSync(OUT, JSON.stringify({ port: PORT, trials: TRIALS, serverCtx: SERVER_CTX, label: LABEL, partial: true, results: results }, null, 1));
       next();
     });
   }
-  console.log("=== INKLING WRITING THREE.JS, ALONE AND WITH EVELYN: " + jobs.length + " runs, port " + PORT + " ===");
-  next();
+  /* the context the server really has, read from /props, so a result file says what it was run at */
+  require("http").get({ hostname: "127.0.0.1", port: PORT, path: "/props", timeout: 4000 }, function (res) {
+    var b = []; res.on("data", function (d) { b.push(d); });
+    res.on("end", function () {
+      try { SERVER_CTX = JSON.parse(Buffer.concat(b).toString("utf8")).default_generation_settings.n_ctx; } catch (e) { SERVER_CTX = null; }
+      console.log("=== INKLING WRITING THREE.JS, ALONE AND WITH EVELYN: " + jobs.length + " runs, port " + PORT + ", server context " + SERVER_CTX + (LABEL ? ", " + LABEL : "") + " ===");
+      next();
+    });
+  }).on("error", function () { console.log("=== no server on port " + PORT + " ==="); process.exit(1); });
 })();

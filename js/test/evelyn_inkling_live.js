@@ -37,7 +37,7 @@
   }
   function pm() { var p = new E.ProfileManager("evelyn_live_test"); p.reset(); return p; }
 
-  step("server: health, props and the slot endpoint", function (done) {
+  step("server: health, props and the slot endpoint", function (done) {   /* prints n_ctx: the context this run was made at */
     getJson("/health", function (err, code, j) {
       if (err) return done(err);
       note("/health " + code + " " + JSON.stringify(j));
@@ -129,14 +129,36 @@
     });
   });
 
-  step("driver: checkpoint and rewind a slot (needs the server's --slot-save-path)", function (done) {
-    var cp = new G.EvelynInklingDriver({ port: PORT });
-    cp.checkpoint(0, "evelyn_live_test.bin", function (err, r) {
-      if (err) { note("not available on this server: " + err.message); return done(); }
-      note("save: " + JSON.stringify(r).slice(0, 160));
-      cp.rewind(0, "evelyn_live_test.bin", function (e2, r2) {
-        if (e2) return done(e2);
-        note("restore: " + JSON.stringify(r2).slice(0, 160)); done();
+  step("driver: probe the slots, then checkpoint and rewind one (needs the server's --slot-save-path)", function (done) {
+    var cp = new G.EvelynInklingDriver({ port: PORT }), t0;
+    cp.probeSlots(function (perr, pr) {
+      if (perr) return done(perr);
+      note("probe: supported " + pr.supported + " (status " + pr.status + ")");
+      if (!pr.supported) { note("this server was started without --slot-save-path: checkpoint and rewind are not available"); return done(); }
+      /* put something in slot 0, save it, change the slot, restore it, and see that the saved prompt is read from the cache again */
+      var client = new A.InklingClient({ port: PORT, model: "inkling", maxTokens: 400, extra: { id_slot: 0, cache_prompt: true } });
+      var long = new Array(60).join("The Frostgate heating stack burns fuel every week of the winter. ");
+      var msgs = [{ role: "user", content: long + "\nHow often does the stack burn fuel? One word." }];
+      client.chat(msgs, 0.1, function (e0) {
+        if (e0) return done(e0);
+        cp.checkpoint(0, "evelyn_live_test.bin", function (err, r) {
+          if (err) return done(err);
+          note("save: " + JSON.stringify(r).slice(0, 140));
+          client.chat([{ role: "user", content: "A different prompt that replaces the cache of slot 0. Say hi." }], 0.1, function (e1) {
+            if (e1) return done(e1);
+            cp.rewind(0, "evelyn_live_test.bin", function (e2, r2) {
+              if (e2) return done(e2);
+              note("restore: " + JSON.stringify(r2).slice(0, 140));
+              t0 = Date.now();
+              client.chat(msgs, 0.1, function (e3) {
+                if (e3) return done(e3);
+                var u = client.lastUsage || {}, cached = u.prompt_tokens_details ? u.prompt_tokens_details.cached_tokens : null;
+                note("after the restore the same prompt: " + (Date.now() - t0) + " ms, " + u.prompt_tokens + " prompt tokens, " + cached + " of them read from the cache");
+                done();
+              });
+            });
+          });
+        });
       });
     });
   });

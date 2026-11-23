@@ -23,6 +23,7 @@
 
   var isNode = (typeof module !== "undefined" && typeof require === "function");
   var E = isNode ? require("./evelyn_core.js") : root.Evelyn;
+  var tryArithmetic = isNode ? require("./evelyn_inkling_agent.js").tryArithmetic : root.EvelynInkling.tryArithmetic;   /* one arithmetic rule for the agent and the cascade */
 
   /* ======================================================================
      1. RUN THE TINY MODEL FROM ITS CURRENT PREFIX AND KEEP THE WEAKEST MARGIN
@@ -90,8 +91,6 @@
   /* ======================================================================
      3. THE TIERED ORCHESTRATOR
      ====================================================================== */
-  var MATH_RE = /^(?:what is +)?(\d+) *([+\-*\/%]) *(\d+) *\?? *$/i;
-
   /* any library with search(q, k) (LibraryStore) or slideSearch(q, shelves, k) (MultiShelfLibrary) */
   function searchLib(lib, q, k) {
     if (!lib) return [];
@@ -112,12 +111,10 @@
   TieredEvelynOrchestrator.prototype.handle = function (question, cb) {
     var q = E.cleanAscii(question).replace(/\n/g, " ").replace(/^\s+|\s+$/g, "");
 
-    /* TIER 0: a sum, answered by CodeSandbox (division or remainder by 0 is left to the model) */
-    var mm = MATH_RE.exec(q);
-    if (mm && !((mm[2] === "/" || mm[2] === "%") && Number(mm[3]) === 0)) {
-      var expr = mm[1] + " " + mm[2] + " " + mm[3];
-      var val = E.fmtNum(E.CodeSandbox.toNum(E.CodeSandbox.evalExpr(expr, {})));
-      cb(null, { tier: 0, answer: expr + " = " + val, inklingCalled: false, trace: [] });
+    /* TIER 0: arithmetic, answered by CodeSandbox (a zero divisor and anything unclear is left to the model) */
+    var ar = tryArithmetic(q);
+    if (ar) {
+      cb(null, { tier: 0, answer: ar.expr + " = " + ar.value, inklingCalled: false, trace: [] });
       return;
     }
 

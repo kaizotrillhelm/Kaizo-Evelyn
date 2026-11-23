@@ -482,34 +482,80 @@
   /* ======================================================================
      5. OFFSET SHELF STORE: the index in memory, the full text on disk
      ====================================================================== */
-  var STOP_W = { a: 1, an: 1, the: 1, is: 1, are: 1, was: 1, what: 1, which: 1, of: 1, "in": 1, on: 1, to: 1, "for": 1, and: 1, or: 1 };
+  var STOP_W = {
+    a: 1, an: 1, the: 1, is: 1, are: 1, was: 1, what: 1, which: 1, of: 1, "in": 1, on: 1, to: 1, "for": 1, and: 1, or: 1,
+    how: 1, "do": 1, does: 1, my: 1, me: 1, it: 1, "with": 1, from: 1, that: 1, "this": 1, be: 1, as: 1, at: 1, by: 1, can: 1, you: 1, "if": 1
+  };
+
+  /* Light stemming, the same on the indexed text and on the question, so the two always meet:
+     purification and purifying both give purify, meshes gives mesh, planets gives planet, geometries gives geometry. */
+  function shelfStem(w) {
+    var n = w.length;
+    if (n > 8 && /ication$/.test(w)) return w.slice(0, -7) + "y";
+    if (n > 4 && /ies$/.test(w)) return w.slice(0, -3) + "y";
+    if (n > 6 && /ing$/.test(w)) return w.slice(0, -3);
+    if (n > 4 && /(ss|x|z|ch|sh)es$/.test(w)) return w.slice(0, -2);
+    if (n > 3 && /s$/.test(w) && !/(ss|us|is)$/.test(w)) return w.slice(0, -1);
+    return w;
+  }
+
+  /* The words of a text for the shelf index. A name written in code is kept whole and also cut into its parts:
+     setPixelRatio gives setpixelratio, set, pixel and ratio; fast_path gives fast_path, fast and path. Repeats are kept
+     (they are the term frequency). */
+  function tokenizeForShelf(text) {
+    var raw = String(text || "").match(/[A-Za-z0-9_]+/g) || [], out = [], i, j, w, parts, cut, p;
+    for (i = 0; i < raw.length; i++) {
+      w = raw[i];
+      cut = w.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/_+/g, " ");
+      parts = cut.split(" ");
+      if (parts.length > 1) {
+        p = w.toLowerCase().replace(/_+/g, "_");
+        if (p.length >= 2 && !STOP_W[p]) out.push(shelfStem(p));
+        for (j = 0; j < parts.length; j++) {
+          p = parts[j].toLowerCase();
+          if (p.length >= 2 && !STOP_W[p]) out.push(shelfStem(p));
+        }
+      } else {
+        p = w.toLowerCase();
+        if (p.length >= 2 && !STOP_W[p]) out.push(shelfStem(p));
+      }
+    }
+    return out;
+  }
 
   function OffsetShelfStore() {
-    this.entries = [];             /* { id, shelf, topic, offset, length, crc32 } */
-    this.inv = Object.create(null);
+    this.entries = [];             /* { id, shelf, topic, offset, length, crc32, docLen } */
+    this.inv = Object.create(null);   /* term -> flat array: id, term count, 1 when the term is in the topic, id, ... */
+    this.avgDocLen = 1;
     this.blob = new Uint8Array(0);
   }
 
   /* records: [{ shelf, topic, fullText }]. The blob stands for the file on disk; a host that
-     keeps the text in a file saves this.blob there and passes a sliceReader to the readers. */
+     keeps the text in a file saves this.blob there and passes a sliceReader to the readers.
+     The whole text of every entry is indexed (it was the first 240 letters before 2026-11-23). */
   OffsetShelfStore.prototype.buildFromRecords = function (records) {
-    var chunks = [], total = 0, i, j;
+    var chunks = [], total = 0, i, j, k, sumLen = 0;
     this.entries = []; this.inv = Object.create(null);
     for (i = 0; i < records.length; i++) {
       var r = records[i], txt = String(r.fullText || ""), bytes = new Uint8Array(txt.length);
       for (j = 0; j < txt.length; j++) bytes[j] = txt.charCodeAt(j) & 0x7F;
       var id = this.entries.length;
-      this.entries.push({ id: id, shelf: r.shelf || "book", topic: r.topic || "entry", offset: total, length: bytes.length, crc32: crc32(bytes, 0, bytes.length) });
+      var topicWords = tokenizeForShelf(r.topic || ""), words = tokenizeForShelf(txt), inTopic = Object.create(null), tf = Object.create(null), order = [];
+      for (j = 0; j < topicWords.length; j++) { inTopic[topicWords[j]] = 1; words.push(topicWords[j]); }
+      for (j = 0; j < words.length; j++) {
+        if (!tf[words[j]]) { tf[words[j]] = 0; order.push(words[j]); }
+        tf[words[j]]++;
+      }
+      this.entries.push({ id: id, shelf: r.shelf || "book", topic: r.topic || "entry", offset: total, length: bytes.length, crc32: crc32(bytes, 0, bytes.length), docLen: words.length });
+      sumLen += words.length;
       chunks.push(bytes); total += bytes.length;
-      var ws = (String(r.topic || "") + " " + txt.slice(0, 240)).toLowerCase().match(/[a-z0-9*]+/g) || [];
-      var seen = Object.create(null);
-      for (j = 0; j < ws.length; j++) {
-        if (STOP_W[ws[j]] || seen[ws[j]]) continue;
-        seen[ws[j]] = 1;
-        if (!this.inv[ws[j]]) this.inv[ws[j]] = [];
-        this.inv[ws[j]].push(id);
+      for (k = 0; k < order.length; k++) {
+        var w = order[k];
+        if (!this.inv[w]) this.inv[w] = [];
+        this.inv[w].push(id, tf[w], inTopic[w] ? 1 : 0);
       }
     }
+    this.avgDocLen = this.entries.length ? Math.max(1, sumLen / this.entries.length) : 1;
     this.blob = new Uint8Array(total);
     var cur = 0;
     for (i = 0; i < chunks.length; i++) { this.blob.set(chunks[i], cur); cur += chunks[i].length; }
@@ -527,20 +573,43 @@
     return { id: e.id, shelf: e.shelf, topic: e.topic, fullText: chars.join(""), bytesRead: slice.length };
   };
 
-  OffsetShelfStore.prototype.searchFull = function (q, topK, sliceReader) {
-    var ws = String(q || "").toLowerCase().match(/[a-z0-9*]+/g) || [];
-    var scores = Object.create(null), i, j;
-    for (i = 0; i < ws.length; i++) {
-      var list = this.inv[ws[i]];
+  /* BM25 over the whole index (k1 1.2, b 0.75), a term that is in an entry's topic counts 2.5 times. Returns the ranked
+     [id, score] pairs without reading any text. */
+  OffsetShelfStore.prototype.rank = function (q) {
+    var terms = tokenizeForShelf(q), seen = Object.create(null), N = this.entries.length || 1, avg = this.avgDocLen || 1;
+    var k1 = 1.2, b = 0.75, scores = Object.create(null), i, j;
+    for (i = 0; i < terms.length; i++) {
+      var w = terms[i];
+      if (seen[w]) continue;
+      seen[w] = 1;
+      var list = this.inv[w];
       if (!list) continue;
-      for (j = 0; j < list.length; j++) scores[list[j]] = (scores[list[j]] || 0) + 1;
+      var df = list.length / 3, idf = Math.log(1 + (N - df + 0.5) / (df + 0.5));
+      for (j = 0; j < list.length; j += 3) {
+        var id = list[j], tf = list[j + 1], dl = this.entries[id].docLen || avg;
+        var norm = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (dl / avg)));
+        scores[id] = (scores[id] || 0) + idf * norm * (list[j + 2] ? 2.5 : 1);
+      }
     }
     var ranked = [];
-    for (var k in scores) ranked.push([Number(k), scores[k]]);
-    ranked.sort(function (a, b) { return b[1] - a[1] || a[0] - b[0]; });
-    var out = [];
-    for (i = 0; i < Math.min(topK || 1, ranked.length); i++) out.push(this.readFullText(ranked[i][0], sliceReader));
+    for (var key in scores) ranked.push([Number(key), scores[key]]);
+    ranked.sort(function (x, y) { return y[1] - x[1] || x[0] - y[0]; });
+    return ranked;
+  };
+
+  /* the best topK entries, read with their CRC32 check; each has .score */
+  OffsetShelfStore.prototype.searchFull = function (q, topK, sliceReader) {
+    var ranked = this.rank(q), out = [], n = Math.min(topK || 1, ranked.length), i, hit;
+    for (i = 0; i < n; i++) { hit = this.readFullText(ranked[i][0], sliceReader); hit.score = ranked[i][1]; out.push(hit); }
     return out;
+  };
+
+  /* the same, with how sure the search is: topScore, the gap to the second hit and that gap as a share of the top score.
+     The scores depend on the question's length and on the shelf, so compare them for one shelf, not across shelves. */
+  OffsetShelfStore.prototype.searchScored = function (q, topK, sliceReader) {
+    var hits = this.searchFull(q, topK, sliceReader);
+    var top = hits.length ? hits[0].score : 0, second = hits.length > 1 ? hits[1].score : 0;
+    return { hits: hits, topScore: top, secondScore: second, gap: top - second, relGap: top > 0 ? (top - second) / top : 0 };
   };
 
   var EvelynStream = {
@@ -552,7 +621,8 @@
     parseLayerSlice: parseLayerSlice,
     rowView: rowView,
     Tiny2StreamModel: Tiny2StreamModel,
-    OffsetShelfStore: OffsetShelfStore
+    OffsetShelfStore: OffsetShelfStore,
+    tokenizeForShelf: tokenizeForShelf
   };
 
   if (typeof module !== "undefined" && module.exports) module.exports = EvelynStream;

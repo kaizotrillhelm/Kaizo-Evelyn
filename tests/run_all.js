@@ -60,6 +60,12 @@ step("no stray control characters", controlCharScan);
 step("JavaScript unit tests", function () { return node("js/test/test_evelyn.js"); });
 step("JavaScript layer-streaming tests", function () { return node("js/test/evelyn_stream_tests.js"); });
 step("JavaScript Inkling agent, cascade, driver and TNY3 header tests", function () { return node("js/test/evelyn_inkling_tests.js"); });
+step("trained-model file: torch and the engine agree (skips without torch)", function () {
+  var r = run("python", [path.join(ROOT, "tests", "check_tny2_parity.py")]);
+  var skipped = /SKIPPED/.test(r.out);
+  return { status: r.code === 0 ? (skipped ? "SKIP" : "PASS") : "FAIL", note: r.out.trim().split("\n").pop(), detail: r.code === 0 ? "" : r.out.slice(-2000) };
+});
+step("JavaScript registry, skills and visual-check tests", function () { return node("js/test/evelyn_skills_tests.js"); });
 step("JavaScript speed-work parity tests", function () { return node("js/test/evelyn_fast_tests.js"); });
 step("benchmark suite runs and agrees with the old code (quick)", function () {
   var r = run(NODE, [path.join(ROOT, "tests", "bench_evelyn.js"), "--quick", "--only=1,2,4,5"]);

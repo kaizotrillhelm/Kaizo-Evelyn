@@ -117,6 +117,18 @@
     req.end();
   };
 
+  /* Does this server do slot save and restore? A restore of a file that cannot exist: status 501 means the server was not
+     started with --slot-save-path; any other status means the endpoint is there. (GET /slots answered 200 on a server that then
+     refused every action, so it proves nothing.) cb(err, { supported, status, message }); err only for a network fault. */
+  EvelynInklingDriver.prototype.probeSlots = function (cb) {
+    this.slotAction(0, "restore", "__evelyn_probe_missing__.bin", function (err) {
+      if (!err) { cb(null, { supported: true, status: 200, message: "restore answered" }); return; }
+      var m = String(err.message || err), st = /slot restore failed (\d+)/.exec(m);
+      if (!st) { cb(err); return; }
+      cb(null, { supported: Number(st[1]) !== 501, status: Number(st[1]), message: m.slice(0, 160) });
+    });
+  };
+
   EvelynInklingDriver.prototype.checkpoint = function (slotId, name, cb) { this.slotAction(slotId, "save", name, cb); };
   EvelynInklingDriver.prototype.rewind = function (slotId, name, cb) { this.slotAction(slotId, "restore", name, cb); };
 

@@ -93,7 +93,7 @@
           if (typeof reply === "function") reply = reply(body);
           if (reply && reply.raw !== undefined) { res.writeHead(200, { "Content-Type": "text/plain" }); res.end(reply.raw); return; }
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ choices: [{ message: { role: "assistant", content: reply && reply.content !== undefined ? reply.content : reply, reasoning_content: "thinking" }, finish_reason: "stop" }] }));
+          res.end(JSON.stringify({ choices: [{ message: { role: "assistant", content: reply && reply.content !== undefined ? reply.content : reply, reasoning_content: "thinking" }, finish_reason: "stop" }], usage: { completion_tokens: 123, prompt_tokens: 50 } }));
           return;
         }
         /* streams: /completion and /v1/chat/completions with stream:true */
@@ -781,7 +781,7 @@
     withMock(function (m) { m.chatReplies = replies; }, function (m, end) {
       var loop = new CL.EvelynCodeLoop({
         store: cfg.store === undefined ? makeThreeStore() : cfg.store, client: new A.InklingClient({ port: m.port }), marker: "buildScene",
-        maxRepairs: cfg.maxRepairs === undefined ? 2 : cfg.maxRepairs,
+        maxRepairs: cfg.maxRepairs === undefined ? 2 : cfg.maxRepairs, effortModel: cfg.effortModel || null,
         verify: function (code) { return code.indexOf("GOOD") >= 0 ? { ok: true, errors: [] } : { ok: false, errors: ["no light in the scene"] }; }
       });
       loop.run("Build a spinning cube with a light and ground plane", guard(end, function (err, r) { try { cb(err, r, m); end(); } catch (e) { end(e); } }));
@@ -795,18 +795,67 @@
     loopWith([BAD_REPLY, GOOD_REPLY], {}, function (err, r, m) {
       assert(!err, String(err));
       assertEq(r.ok, true); assertEq(r.firstDraftOk, false); assertEq(r.rounds, 1); assertEq(r.calls, 2); assertEq(r.history.length, 2);
-      assertEq(m.bodies[0].reasoning_effort, "low", "notes were found, so the first effort is low");
+      assertEq(m.bodies[0].chat_template_kwargs.reasoning_effort, 0.2, "notes were found, so the first effort is 0.2");
+      assertEq(m.bodies[0].reasoning_effort, undefined, "a number is sent in the template kwargs");
+      assertEq(m.bodies[1].chat_template_kwargs.reasoning_effort, 0.1, "the repair goes one step down the schedule");
+      assertEq(r.efforts.join(","), "0.2,0.1");
       has(m.bodies[0].messages[1].content, "Verified notes:"); has(m.bodies[0].messages[1].content, "[three#");
-      has(m.bodies[1].messages[3].content, "no light in the scene"); has(m.bodies[1].messages[3].content, "complete corrected code");
+      has(m.bodies[1].messages[3].content, "no light in the scene"); has(m.bodies[1].messages[3].content, "Fix ONLY those errors");
+      assertEq(r.features.hits >= 1, true); assertEq(r.features.topScore > 0, true); assertEq(r.features.hasCodeWords, 1);
       done();
     });
   });
 
-  test("code loop: with no notes the first effort is medium; maxRepairs 0 stops after one failed draft", function (done) {
+  test("code loop: with no notes the first effort is 0.55; maxRepairs 0 stops after one failed draft", function (done) {
     loopWith([BAD_REPLY], { store: null, maxRepairs: 0 }, function (err, r, m) {
       assert(!err, String(err));
-      assertEq(m.bodies[0].reasoning_effort, "medium"); assertEq(r.ok, false); assertEq(r.calls, 1); assertEq(r.hits, 0);
+      assertEq(m.bodies[0].chat_template_kwargs.reasoning_effort, 0.55); assertEq(r.ok, false); assertEq(r.calls, 1); assertEq(r.hits, 0);
       assert(m.bodies[0].messages[1].content.indexOf("Verified notes:") < 0, "no notes block");
+      assertEq(r.features.hits, 0); assertEq(r.features.topScore, 0);
+      done();
+    });
+  });
+
+  test("code loop: a repair starts again from the same first two messages and adds only the latest attempt (no pile-up)", function (done) {
+    var BAD2 = "Second try:\n" + F + "js\nfunction buildScene(THREE) { /* BAD2 */ }\n" + F + "\n";
+    loopWith([BAD_REPLY, BAD2, GOOD_REPLY], {}, function (err, r, m) {
+      assert(!err, String(err));
+      assertEq(r.ok, true); assertEq(r.calls, 3); assertEq(r.rounds, 2); assertEq(r.efforts.join(","), "0.2,0.1,0.05");
+      var a = JSON.stringify(m.bodies[0].messages), c = m.bodies[2].messages;
+      assertEq(c.length, 4, "system, task, one failed attempt, its errors: not six");
+      assertEq(JSON.stringify(c.slice(0, 2)), JSON.stringify(m.bodies[0].messages.slice(0, 2)), "the first two messages are the same bytes on every call");
+      assertEq(JSON.stringify(m.bodies[1].messages.slice(0, 2)), JSON.stringify(m.bodies[0].messages.slice(0, 2)));
+      has(c[2].content, "BAD2"); assert(c[2].content.indexOf("/* BAD */") < 0, "the first failed draft is gone from the third call");
+      done();
+    });
+  });
+
+  test("code loop: a reply that used all its tokens thinking is asked again, same messages, a lower effort", function (done) {
+    loopWith(["", "", GOOD_REPLY], {}, function (err, r, m) {
+      assert(!err, String(err));
+      assertEq(r.ok, true); assertEq(r.calls, 3); assertEq(r.exhausted, 2); assertEq(r.firstDraftOk, false);
+      assertEq(r.efforts.join(","), "0.2,0.1,0.05");
+      has(r.history[0].errors[0], "no reply"); has(r.history[0].errors[0], "no answer text");
+      assertEq(JSON.stringify(m.bodies[1].messages), JSON.stringify(m.bodies[0].messages), "the same messages again");
+      assertEq(JSON.stringify(m.bodies[2].messages), JSON.stringify(m.bodies[0].messages));
+      done();
+    });
+  });
+
+  test("code loop: when every retry is spent in thinking it stops with no code, after the allowed rounds", function (done) {
+    loopWith(["", "", ""], {}, function (err, r, m) {
+      assert(!err, String(err));
+      assertEq(r.ok, false); assertEq(r.noCode, true); assertEq(r.calls, 3, "one first call and two retries"); assertEq(r.exhausted, 2);
+      done();
+    });
+  });
+
+  test("code loop: an effort model's choice starts the schedule and each retry halves it", function (done) {
+    var seen = null, model = { choose: function (f) { seen = f; return { effort: 0.6, maxTokens: 3000 }; } };
+    loopWith([BAD_REPLY, GOOD_REPLY], { effortModel: model }, function (err, r, m) {
+      assert(!err, String(err));
+      assertEq(m.bodies[0].chat_template_kwargs.reasoning_effort, 0.6); assertEq(m.bodies[1].chat_template_kwargs.reasoning_effort, 0.3);
+      assert(seen && seen.hits >= 1 && seen.promptChars > 100 && seen.hasCodeWords === 1, "the model was given the features: " + JSON.stringify(seen));
       done();
     });
   });
@@ -820,6 +869,187 @@
         try { assert(!err2, "no throw"); assertEq(r2.ok, false); assertEq(r2.noCode, true); has(r2.history[0].errors[0], "no reply"); done(); } catch (e) { done(e); }
       });
     });
+  });
+
+  /* ======================================================================
+     2026-11-23 ADDITIONS: arithmetic, derived numbers, slot probe, effort model
+     ====================================================================== */
+  test("arithmetic: parentheses, several operators and decimals are answered locally; zero divisors, dates, phone numbers and prose are not", function (done) {
+    var T = A.tryArithmetic;
+    function show(q) { var r = T(q); return r ? r.expr + " = " + r.value : null; }
+    assertEq(show("what is 18*4"), "18 * 4 = 72"); assertEq(show("7 % 3"), "7 % 3 = 1");
+    assertEq(show("what is (3 + 4) * 5 - 2 / 4"), "(3 + 4) * 5 - 2 / 4 = 34.5");
+    assertEq(show("2*(3+(4*5))"), "2 * (3 + (4 * 5)) = 46"); assertEq(show("1.5*4?"), "1.5 * 4 = 6");
+    assertEq(show("what is -3 * 2"), "-3 * 2 = -6"); assertEq(show("calculate 100 / 8"), "100 / 8 = 12.5");
+    assertEq(show("10 / 0"), null, "zero divisor"); assertEq(show("7 % 0"), null, "zero remainder");
+    assertEq(show("5/(3-3)"), null, "a divisor that comes out zero"); assertEq(show("1 + 2 / (4 - 4)"), null);
+    assertEq(show("2024-11-23"), null, "a date"); assertEq(show("555-1234"), null, "a phone number");
+    assertEq(show("what is 555-1234"), "555 - 1234 = -679", "asked to calculate it");
+    assertEq(show("hello 3+4"), null, "prose"); assertEq(show("3+"), null, "unfinished"); assertEq(show("5"), null, "no operator");
+    assertEq(show("(3 + 4"), null, "unbalanced"); assertEq(show("1..2 + 3"), null, "a malformed number");
+    assertEq(show(new Array(30).join("(") + "1" + new Array(30).join(")") + " + 1"), null, "nesting deeper than 20");
+    assertEq(show("1+" + new Array(60).join("1+") + "1"), null, "longer than 80 characters");
+    done();
+  });
+
+  test("arithmetic: on 400 generated expressions it matches JavaScript's own result whenever that is finite, and every such expression without a remainder is answered", function (done) {
+    var s = 99; function r() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
+    function gen(d) {
+      if (d === 0 || r() < 0.25) return String(1 + Math.floor(r() * 20));
+      var op = ["+", "-", "*", "/", "%"][Math.floor(r() * 5)], a = gen(d - 1), b = gen(d - 1);
+      var e = a + " " + op + " " + b;
+      return r() < 0.4 ? "(" + e + ")" : e;
+    }
+    var n = 0, answered = 0, bad = [];
+    for (var i = 0; i < 400; i++) {
+      var q = gen(3);
+      if (/^\d+$/.test(q)) continue;   /* a bare number has no operator and is left to the model */
+      var js = Function("return (" + q + ")")(), got = A.tryArithmetic(q);
+      if (!isFinite(js)) { assertEq(got, null, "a zero divisor must not be answered: " + q); continue; }
+      n++;
+      if (got) {
+        answered++;
+        if (Math.abs(Number(got.value) - js) > 1e-6 * Math.max(1, Math.abs(js)) && String(got.value) !== E.fmtNum(js)) bad.push(q + " -> " + got.value + " against " + js);
+      } else if (q.indexOf("%") < 0) bad.push("not answered: " + q);
+    }
+    assert(bad.length === 0, bad.slice(0, 3).join(" | "));
+    assert(n > 250 && answered === n, "most expressions are answered (" + answered + " of " + n + ")");
+    done();
+  });
+
+  test("agent: a parenthesised sum is answered with no server call; the cascade answers it at tier 0 too", function (done) {
+    withMock(function (m) { m.chatReplies = ["unused"]; }, function (m, end) {
+      var agent = new A.EvelynInklingAgent(makeStore(), makePm(), new A.InklingClient({ port: m.port }));
+      agent.ask("what is (12 + 8) * 3 - 5", guard(end, function (err, r) {
+        assert(!err, String(err)); assertEq(r.answer, "(12 + 8) * 3 - 5 = 55"); assertEq(r.inklingCalled, false);
+        var o = new C.TieredEvelynOrchestrator({ lib: fakeLib({ hits: function () { return []; } }), pm: makePm(), inkling: new A.InklingClient({ port: m.port }) });
+        o.handle("(1+2)*(3+4)", guard(end, function (err2, r2) {
+          assertEq(r2.tier, 0); assertEq(r2.answer, "(1 + 2) * (3 + 4) = 21"); assertEq(m.bodies.length, 0, "no call to the server");
+          end();
+        }));
+      }));
+    }, done);
+  });
+
+  test("number check: derived numbers pass (percent, ratio, sum, unit), an invented one still fails, and the switch turns it off", function (done) {
+    var V = A.verifyNumbersAgainstHits;
+    var pumps = [{ fullText: "3 of the 4 pumps work." }], water = [{ fullText: "Use 1 litre of water and 12 grams of salt, 4 times a day." }];
+    assertEq(V("75% of the pumps work.", pumps).length, 0, "3 / 4 x 100"); assertEq(V("0.75 of the pumps work.", pumps).length, 0, "3 / 4");
+    assertEq(V("7 pumps in all.", pumps).length, 0, "3 + 4"); assertEq(V("12 pumps in all.", pumps).length, 0, "3 x 4"); assertEq(V("1 pump is down.", pumps).length, 0, "4 - 3");
+    assertEq(V("That is 1000 ml of water.", water).length, 0, "1 litre is 1 x 1000"); assertEq(V("48 grams a day.", water).length, 0, "12 x 4");
+    assertEq(V("A third, about 33%.", [{ fullText: "1 of the 3 gates is shut." }]).length, 0, "a ratio rounded to the digits shown");
+    assertEq(V("75% of the pumps work.", pumps, "", { derived: false }).join(","), "75", "off: the old behaviour");
+    assertEq(V("It is at mile 530.", [{ fullText: "Frostgate sits at mile 53, 17,000 ft up." }]).join(","), "530", "an invented number is still found");
+    assertEq(V("100 coins.", [{ fullText: "It costs 1000 coins." }]).join(","), "100");
+    done();
+  });
+
+  test("number check: how often an invented number slips through when derived numbers are allowed (measured, printed)", function (done) {
+    var src = [{ fullText: "Frostgate sits at mile 53 along the Grand Road, 17,000 ft up. Its heating stack burns 12 tonnes of fuel a week and the rescue post holds 4 snowcats." }];
+    var on = 0, off = 0, total = 0, n;
+    for (n = 100; n <= 999; n++) {
+      total++;
+      if (A.verifyNumbersAgainstHits(String(n) + " tonnes", src).length === 0) on++;
+      if (A.verifyNumbersAgainstHits(String(n) + " tonnes", src, "", { derived: false }).length === 0) off++;
+    }
+    console.log("       invented 3-digit numbers accepted against a 4-number source: " + (100 * on / total).toFixed(1) + "% with derived numbers, " + (100 * off / total).toFixed(1) + "% without (" + on + " and " + off + " of " + total + ")");
+    assert(on >= off, "derived numbers can only let more through");
+    assert(on / total < 0.25, "the allowance must stay small, got " + (on / total));
+    done();
+  });
+
+  test("slot probe: 501 means the server cannot do slots, any other answer means it can, a closed port is an error", function (done) {
+    withMock(function (m) { m.status = 501; m.errorBody = JSON.stringify({ error: { message: "This server does not support slots action. Start it with --slot-save-path" } }); }, function (m, end) {
+      var cp = new G.EvelynInklingDriver({ port: m.port });
+      cp.probeSlots(guard(end, function (err, r) {
+        assert(!err, String(err)); assertEq(r.supported, false); assertEq(r.status, 501); assertEq(m.paths[0], "/slots/0?action=restore");
+        m.status = 400; m.errorBody = JSON.stringify({ error: { message: "file not found" } });
+        cp.probeSlots(guard(end, function (err2, r2) {
+          assert(!err2); assertEq(r2.supported, true); assertEq(r2.status, 400);
+          m.status = 200;
+          cp.probeSlots(guard(end, function (err3, r3) {
+            assert(!err3); assertEq(r3.supported, true);
+            new G.EvelynInklingDriver({ port: 1 }).probeSlots(function (err4) { try { assert(err4, "a network fault is an error"); end(); } catch (e) { end(e); } });
+          }));
+        }));
+      }));
+    }, done);
+  });
+
+  test("code loop: it records the tokens of every call and the features of the search", function (done) {
+    loopWith([BAD_REPLY, GOOD_REPLY], {}, function (err, r) {
+      assert(!err, String(err));
+      assertEq(r.tokens.join(","), "123,123"); assertEq(r.features.hits >= 1, true); assertEq(r.features.promptChars > 300, true);
+      assert(r.features.relGap >= 0 && r.features.relGap <= 1, "relGap is a share");
+      done();
+    });
+  });
+
+  test("agent: the result carries how sure the search was", function (done) {
+    withMock(function (m) { m.chatReplies = ["Frostgate is at mile 53 [caldera#0]."]; }, function (m, end) {
+      var agent = new A.EvelynInklingAgent(makeStore(), makePm(), new A.InklingClient({ port: m.port }));
+      agent.ask("Where is Frostgate?", guard(end, function (err, r) {
+        assert(!err, String(err)); assert(r.retrieval.topScore > 0 && r.retrieval.relGap > 0, JSON.stringify(r.retrieval));
+        end();
+      }));
+    }, done);
+  });
+
+  var EM = require("../evelyn_effort_model.js");
+  /* rows from a known truth: passing gets likelier with effort, notes help, a long prompt hurts a little; tokens grow with effort */
+  function truthRows(n, seed) {
+    var s = seed; function r() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
+    var rows = [], efforts = [0.05, 0.1, 0.2, 0.3, 0.55, 0.7, 0.9], i;
+    for (i = 0; i < n; i++) {
+      var hits = r() < 0.5 ? 0 : 1 + Math.floor(r() * 4), eff = efforts[Math.floor(r() * efforts.length)], pc = 300 + Math.floor(r() * 3000);
+      var f = { hits: hits, topScore: hits ? 4 + r() * 10 : 0, relGap: hits ? r() * 0.5 : 0, promptChars: pc, hasCodeWords: 1 };
+      var p = 1 / (1 + Math.exp(-(-1.2 + 5 * eff + 1.6 * (hits > 0 ? 1 : 0) - 0.0004 * pc)));
+      rows.push({ hits: f.hits, topScore: f.topScore, relGap: f.relGap, promptChars: pc, hasCodeWords: 1, effort: eff, ok: r() < p, tokens: Math.round(Math.exp(5.5 + 2.2 * eff + 0.1 * r())), _p: p });
+    }
+    return rows;
+  }
+
+  test("effort model: too few rows, one outcome or one effort give the loop's defaults and say why", function (done) {
+    var small = new EM.EffortModel().fit(truthRows(8, 1));
+    assertEq(small.fitted, false); has(small.reason, "only 8 rows");
+    assertEq(small.choose({ hits: 3 }).effort, 0.2); assertEq(small.choose({ hits: 3 }).source, "default"); assertEq(small.choose({ hits: 0 }).effort, 0.55);
+    var same = truthRows(60, 2).map(function (x) { x.ok = true; return x; });
+    has(new EM.EffortModel().fit(same).reason, "same outcome");
+    var one = truthRows(60, 3).map(function (x) { x.effort = 0.2; return x; });
+    one[0].ok = true; one[1].ok = false;
+    has(new EM.EffortModel().fit(one).reason, "one effort");
+    done();
+  });
+
+  test("effort model: fitted on 400 rows of a known truth it follows the truth, picks a lower effort with notes, and sets a token budget", function (done) {
+    var rows = truthRows(400, 7), m = new EM.EffortModel().fit(rows);
+    assertEq(m.fitted, true);
+    var err = 0, k = 0, held = truthRows(200, 11), i;
+    for (i = 0; i < held.length; i++) { err += Math.abs(m.predict(held[i], held[i].effort) - held[i]._p); k++; }
+    var mae = err / k;
+    console.log("       effort model: mean error of the pass chance on 200 unseen rows: " + mae.toFixed(3));
+    assert(mae < 0.1, "mean error " + mae);
+    var f0 = { hits: 0, topScore: 0, relGap: 0, promptChars: 900, hasCodeWords: 1 }, f1 = { hits: 3, topScore: 9, relGap: 0.3, promptChars: 900, hasCodeWords: 1 };
+    assert(m.predict(f0, 0.8) > m.predict(f0, 0.1), "a higher effort passes more often (in the truth)");
+    assert(m.predict(f1, 0.2) > m.predict(f0, 0.2), "notes help");
+    var c0 = m.choose(f0), c1 = m.choose(f1);
+    assertEq(c0.source, "model"); assert(c1.effort <= c0.effort, "with notes the chosen effort is no higher: " + c1.effort + " against " + c0.effort);
+    assert(c0.maxTokens >= 1000 && c0.maxTokens <= 8000, "budget in range " + c0.maxTokens);
+    assert(m.tokensFor(f0, 0.9) > m.tokensFor(f0, 0.1), "a higher effort writes more tokens");
+    done();
+  });
+
+  test("effort model: the same rows give the same model, and it survives a save and load", function (done) {
+    var rows = truthRows(120, 5), a = new EM.EffortModel().fit(rows), b = new EM.EffortModel().fit(rows);
+    assertEq(JSON.stringify(a.toJSON()), JSON.stringify(b.toJSON()), "deterministic");
+    var c = EM.EffortModel.fromJSON(JSON.parse(JSON.stringify(a.toJSON()))), f = { hits: 2, topScore: 6, relGap: 0.2, promptChars: 1500, hasCodeWords: 1 };
+    assertEq(c.predict(f, 0.3), a.predict(f, 0.3)); assertEq(c.choose(f).effort, a.choose(f).effort);
+    assert(JSON.stringify(a.toJSON()).length < 2500, "the saved model is small");
+    var x = EM.solve([[2, 1, 0], [1, 3, 1], [0, 1, 4]], [3, 9, 9]);
+    assert(Math.abs(x[0] - 1 / 3) < 1e-9 && Math.abs(x[1] - 7 / 3) < 1e-9 && Math.abs(x[2] - 5 / 3) < 1e-9, "linear solve " + x);
+    var row = EM.rowFromRun({ features: { hits: 2, topScore: 5, relGap: 0.1, promptChars: 800, hasCodeWords: 1 }, efforts: [0.2, 0.1], firstDraftOk: false, tokens: [321, 100] });
+    assertEq(row.effort, 0.2); assertEq(row.ok, false); assertEq(row.tokens, 321);
+    done();
   });
 
   test("effortFields: a word goes in the field, a number in the template kwargs, nothing means low", function (done) {

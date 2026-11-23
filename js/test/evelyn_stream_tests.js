@@ -224,6 +224,102 @@
     done();
   });
 
+  /* ---- BM25 search over the whole text (2026-11-23) ---- */
+  function shelfOf(records) { var st = new S.OffsetShelfStore(); st.buildFromRecords(records); return st; }
+  function firstTopic(st, q) { var h = st.searchFull(q, 1); return h.length ? h[0].topic : null; }
+
+  test("shelf search: a word deep in an entry is found (the old index saw the first 240 letters only)", function (done) {
+    var filler = new Array(40).join("Plain words about nothing in particular. ");
+    var st = shelfOf([
+      { shelf: "t", topic: "Renderer", fullText: filler + "Call renderer.setPixelRatio(window.devicePixelRatio) once at start." },
+      { shelf: "t", topic: "Camera", fullText: "Cameras look at things. " + filler }
+    ]);
+    assert(st.entries[0].length > 240 + 60, "the sentence must lie past letter 240");
+    assertEq(firstTopic(st, "pixel ratio"), "Renderer", "found through the cut-up name setPixelRatio");
+    assertEq(firstTopic(st, "setPixelRatio"), "Renderer", "found by the whole name");
+    assertEq(firstTopic(st, "devicePixelRatio"), "Renderer", "found by a second name");
+    done();
+  });
+
+  test("shelf search: names with underscores and capitals are cut, plurals and endings meet their stem", function (done) {
+    var T = S.tokenizeForShelf;
+    assertEq(T("setPixelRatio").join(","), "setpixelratio,set,pixel,ratio");
+    assertEq(T("fast_path").join(","), "fast_path,fast,path");
+    assertEq(T("BufferGeometry").join(","), "buffergeometry,buffer,geometry");
+    assertEq(T("XMLHttpRequest").join(","), "xmlhttprequest,xml,http,request");
+    assertEq(T("the purification").join(","), "purify", "purification gives purify; the is a stop word");
+    assertEq(T("purifying meshes planets geometries string").join(","), "purify,mesh,planet,geometry,string", "string is not cut to str");
+    var st = shelfOf([{ shelf: "t", topic: "Water", fullText: "Boil the water for one minute; purification makes it safe." }, { shelf: "t", topic: "Other", fullText: "Nothing here." }]);
+    assertEq(firstTopic(st, "how do I purify water"), "Water");
+    done();
+  });
+
+  test("shelf search: a rare word beats a common one, a topic hit beats a body hit, a short entry beats a long one", function (done) {
+    var common = new Array(9).join("function value return object ");
+    var st = shelfOf([
+      { shelf: "t", topic: "A", fullText: common + "function value" }, { shelf: "t", topic: "B", fullText: common + "return object" },
+      { shelf: "t", topic: "C", fullText: common + "function BufferGeometry" }, { shelf: "t", topic: "D", fullText: common + "value" }
+    ]);
+    assertEq(firstTopic(st, "function BufferGeometry"), "C", "the rare name decides");
+    var st2 = shelfOf([{ shelf: "t", topic: "Other", fullText: "A note that says snowcat once." }, { shelf: "t", topic: "Snowcat", fullText: "Machines that groom the road." }]);
+    assertEq(firstTopic(st2, "snowcat"), "Snowcat", "the topic counts more");
+    var long = "word " + new Array(200).join("filler ") + "tapir";
+    var st3 = shelfOf([{ shelf: "t", topic: "Long", fullText: long }, { shelf: "t", topic: "Short", fullText: "The tapir is a mammal." }]);
+    assertEq(firstTopic(st3, "tapir"), "Short", "the short entry beats the long one with one mention each");
+    done();
+  });
+
+  test("shelf search: scores come back, the gap tells a clear hit from a weak one, stop words alone find nothing, ties go by id", function (done) {
+    var st = shelfOf([
+      { shelf: "t", topic: "Frostgate", fullText: "Frostgate sits at mile 53. Heating stack, rescue post." },
+      { shelf: "t", topic: "Gondola", fullText: "The last gondola leaves at 5:07 PM." },
+      { shelf: "t", topic: "Twin one", fullText: "common words appear here" }, { shelf: "t", topic: "Twin two", fullText: "common words appear here" }
+    ]);
+    var r = st.searchScored("Frostgate rescue post", 3);
+    assert(r.hits[0].score > 0 && r.topScore === r.hits[0].score, "top score");
+    assert(r.relGap > 0.5, "a clear hit has a wide relative gap, got " + r.relGap);
+    var weak = st.searchScored("common words", 3);
+    assertEq(weak.hits[0].topic, "Twin one", "a tie goes to the lower id"); assertEq(weak.gap, 0, "twins have no gap");
+    assertEq(st.searchFull("what is the of", 3).length, 0, "only stop words");
+    assertEq(st.searchFull("", 3).length, 0, "an empty question");
+    assertEq(st.searchFull("zzzzqq", 3).length, 0, "no word matches");
+    assert(st.searchFull("gondola", 1)[0].fullText.indexOf("5:07 PM") > 0, "the full text is read");
+    done();
+  });
+
+  test("shelf search: on ten messy questions about the three.js notes it finds the right entry at least as often as the old index", function (done) {
+    var NOTES = require("./threejs_tasks.js").NOTES;
+    var cases = [
+      ["my ground plane is standing up like a wall", "Plane ground horizontal"], ["how do I draw lots of trees in one call", "Instanced mesh trees"],
+      ["make a child rotate around the middle using a group", "Orbit with a group"], ["my cube is completely black", "Lights and lit materials"],
+      ["sun glow emissive yellow", "Materials emissive glow color"], ["shadow looks cut off at the edges", "Shadows"],
+      ["pointlight too dim far away", "Point light intensity"], ["where do I put the camera to see it from above", "Camera placement"],
+      ["Geometry was removed in r125", "Geometry classes"], ["set the rotation from the time and never read the clock", "Animation as a function of time"]
+    ];
+    /* the old index, as it was before 2026-11-23: the topic and the first 240 letters, one point for each word in common */
+    function oldTop(q) {
+      var inv = Object.create(null), i, j, w;
+      var STOP = { a: 1, an: 1, the: 1, is: 1, are: 1, was: 1, what: 1, which: 1, of: 1, "in": 1, on: 1, to: 1, "for": 1, and: 1, or: 1 };
+      for (i = 0; i < NOTES.length; i++) {
+        var ws = (String(NOTES[i].topic) + " " + NOTES[i].fullText.slice(0, 240)).toLowerCase().match(/[a-z0-9*]+/g) || [], seen = {};
+        for (j = 0; j < ws.length; j++) { if (STOP[ws[j]] || seen[ws[j]]) continue; seen[ws[j]] = 1; (inv[ws[j]] = inv[ws[j]] || []).push(i); }
+      }
+      var sc = {}, qs = q.toLowerCase().match(/[a-z0-9*]+/g) || [];
+      for (i = 0; i < qs.length; i++) (inv[qs[i]] || []).forEach(function (id) { sc[id] = (sc[id] || 0) + 1; });
+      var best = null;
+      Object.keys(sc).forEach(function (k) { if (best === null || sc[k] > sc[best] || (sc[k] === sc[best] && Number(k) < Number(best))) best = k; });
+      return best === null ? null : NOTES[Number(best)].topic;
+    }
+    var st = shelfOf(NOTES), nNew = 0, nOld = 0, missedNew = [];
+    cases.forEach(function (c) {
+      if (firstTopic(st, c[0]) === c[1]) nNew++; else missedNew.push(c[0]);
+      if (oldTop(c[0]) === c[1]) nOld++;
+    });
+    console.log("       ten messy questions, right entry first: new BM25 " + nNew + ", old index " + nOld + (missedNew.length ? "; new missed: " + missedNew.join(" | ") : ""));
+    assert(nNew >= nOld, "the new search must not be worse than the old one (" + nNew + " against " + nOld + ")");
+    done();
+  });
+
   test("ES5 only: the module has no arrow functions, let, const or template literals", function (done) {
     if (!isNode) { done(); return; }
     var src = require("fs").readFileSync(require("path").join(__dirname, "..", "evelyn_stream.js"), "utf8");

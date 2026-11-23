@@ -4,6 +4,10 @@
 
 A computer that is too old for today's software is still a computer. Evelyn is written to run on the old machines people throw away: plain code, no network, no installs, little memory. The section [Reaching back: how old a machine can run it](#reaching-back-how-old-a-machine-can-run-it) says how far back each edition is meant to go and what has actually been tried.
 
+## Disclaimer: no warranty, no protection
+
+I offer no warranty of any kind, and no protection of any device that runs this software. You run it at your own risk. I am not responsible for any damage, data loss, crash, security problem or other harm to a computer, a phone, a network or anything connected to them, nor for any result the software produces. This includes the old machines Evelyn is written for, the code the optional language-model loop generates and runs, and the commands, scripts and test programs in this folder. Back up what matters first, run the code loop's generated programs only in a sandbox, and read what a script does before you run it. [LICENSE](LICENSE) has the full terms; this paragraph adds to them and does not replace them.
+
 ![Evelyn: the concourse, a question to Echo, and the Lab](media/evelyn_demo.gif)
 
 More: [the portrait, 10 seconds](media/evelyn_face_float.gif) and [the cartridge player, validator, debugger and safety charter](media/evelyn_features.gif).
@@ -215,7 +219,53 @@ How the pictures were made (`tools/threejs_showcase.py`). Each scene is drawn in
 python tools/threejs_showcase.py --three-dir <folder with three.module.js and three.core.js>
 ```
 
-**Not measured.** The chat's other claims: that 40 to 70 percent of queries can stop at the small tiers, and that a larger context and a 4,096-entry vocabulary help the assistant. The small model is the `TNY2` engine with random test weights (no trained `TINY.BIN` exists), so what a trained router or expander would decide is open. The loop cut was changed from the design: it needs the same 48 letters to have appeared twice before, because a code listing or a JSON list can repeat a line once; `loopRepeats: 1` gives the original rule.
+### Second round, at 102,400 tokens of context (2026-11-23)
+
+A second AI Studio review (see `CREDITS.md`) pointed at the first round's weak spots. What was added, each with tests in `js/test/evelyn_inkling_tests.js` and `js/test/evelyn_stream_tests.js`:
+
+- **Shelf search is BM25 over the whole text** (`OffsetShelfStore` in `js/evelyn_stream.js`). It indexed the first 240 letters of an entry before. Now every word counts, a rare word counts more than a common one (idf), a word in the topic counts 2.5 times, a short entry beats a long one with the same mention, names written in code are cut (`setPixelRatio` gives `set`, `pixel`, `ratio` and the whole name), and endings meet a stem (`purification` and `purifying` both give `purify`). `searchScored` also returns the top score and the gap to the second hit. On ten messy questions I wrote about the three.js notes, the right entry came first 10 times with the new search and 8 times with the old one. I wrote the questions with the notes in view, so read that as a smoke test, not an accuracy.
+- **The code loop steps its effort down and rewinds to the same start.** When Inkling uses its whole token budget thinking and sends no answer, the same messages go again at a lower effort (schedule 0.20, 0.10, 0.05 with notes; 0.55, 0.25, 0.10 without). A repair starts again from the identical first two messages and adds only the latest failed code and its exact errors, so the prompt does not grow and the server's prompt cache for the start is reused. No `/slots` call is needed for that.
+- **Arithmetic with parentheses is answered with no model call** (`tryArithmetic`: `+ - * / %`, decimals, nesting up to 20). A zero divisor (even one that comes out of a sum), a date, a phone number, a long expression and any disagreement with `CodeSandbox` go to the model.
+- **The number check allows derived numbers**: a sum, difference, product or ratio of two source numbers, a percent, and times or over 100 and 1,000 (so `75%` for 3 of 4, and `1000 ml` for 1 litre pass). Measured: 0.8% of invented three-digit numbers (7 of 900) slip through against a four-number source, 0% without the allowance. `{ derived: false }` turns it off.
+- **`probeSlots`** asks the server whether slot save and restore exist, by restoring a file that cannot exist (501 means no). `GET /slots` answers 200 on a server that then refuses every action, so it proves nothing.
+- **`js/evelyn_effort_model.js`** fits, from the loop's own logged runs, the chance that a first draft passes at a given effort, and a token budget. It refuses to decide on fewer than 20 rows, on one outcome or on one effort. On rows made from a known truth it follows the truth (mean error 0.067 on unseen rows). On the 12 real rows of the run below it returned the defaults and said why. It needs 50 to 200 runs to say anything about Inkling.
+- **`tools/train_tny2.py`** trains a `TINY.BIN` that `js/evelyn_core.js` loads. `tests/check_tny2_parity.py` writes a random model with it and compares torch with the engine: the best letter agrees at 44 of 44 positions and the scores correlate at 0.9998 (a step of `tests/run_all.js` when torch is installed). `tools/make_role_pairs.js` has Inkling write the training pairs (580 were written: 400 for the keyword expander, 180 for the effort router) and `tools/eval_roles.js` runs held-out pairs through the real engine and the cascade.
+
+**Getting Inkling to 102,400 tokens.** On the RTX 3090 alone the default batch size failed to allocate the prompt buffers, and a smaller batch made it fit: the server holds the whole 102,400 context with an 8-bit cache, all layers on the card, and 236 MB of its memory beside the card in system RAM with 1 GB free (`-ub 256 -b 512`). Before that, the 3090 alone with the default batch had only 270 MB free and 3.9 to 4.7 GB of the server in system RAM, with 8-bit and with 4-bit caches, and was refused; a start across both cards failed on the same buffers. The server was started through the project's launcher and its own GPU-queue claim.
+
+**What ran at 102,400 tokens.**
+
+- *The live test* (`js/test/evelyn_inkling_live.js`) passes 6 of 6, now including a real slot checkpoint: 997 tokens saved in 2.7 s (a 256 MB file), restored in 0.18 s, and the same prompt then read 908 of its 912 tokens from the cache.
+- *Needle in a haystack* (`js/test/evelyn_longctx_bench.js`): 2,700 invented station records (84,353 prompt tokens as the server counts them), 6 questions, each asking for one station's locker. Both ways found every needle.
+
+| Way | Right | First question | Later questions | Prompt tokens |
+| --- | --- | --- | --- | --- |
+| Whole pile in the prompt | 6 of 6 | 238 s | 4.5 s (prompt cache) | 84,353 |
+| Evelyn's shelf search sends the records it found | 6 of 6 | 3.0 s | 2.7 s | 194 |
+
+On this easy test the long context was enough for accuracy. The difference is cost: the first question of the pile pays the whole prefill, and Evelyn's search put the right record first in 6 of 6 questions. The records are invented and every question names its station, so a real pile with vaguer questions may behave differently.
+
+- *three.js, the three ways again* (same tasks and seeds, 6 runs a row), with the new loop and search:
+
+| Condition | First draft passes | Final passes | Calls per run | Tokens per run | Seconds per run |
+| --- | --- | --- | --- | --- | --- |
+| Inkling alone | 3 of 6 | 3 of 6 | 1.0 | 3,539 | 68 |
+| Evelyn loop, no notes | 4 of 6 | 6 of 6 | 1.3 | 2,248 | 44 |
+| Evelyn loop with notes | 6 of 6 | 6 of 6 | 1.0 | 1,233 | 24 |
+
+Against the 32k run above, the loop without notes wrote about a third fewer tokens (2,248 against 3,177) and passed 4 first drafts instead of 5, with the same 6 of 6 at the end; the loop with notes wrote more (1,233 against 914) and still passed every first draft. Both results are 6 runs a row, so the size of those differences is within what a different seed could change. Inkling alone failed the same three runs as before (the island twice, out of tokens before closing its code block, and the solar system with five spheres).
+
+**A trained `TINY.BIN` for the cascade: it did not help.** Inkling wrote 580 pairs from 26 notes (the three.js notes and the starter library): 16 messy questions for each note and 90 easy and 90 hard requests. A model with D 64, 4 layers (156 KB) was trained on 464 of them on the CPU and the other 116 were held out (`tools/train_tny2.py`; train loss fell to 0.0003 while the held-out loss stayed near 0.6, so it learned the training pairs by heart). Run through the real engine (`tools/eval_roles.js`, margin threshold 1.25):
+
+| Role | Result on the held-out pairs |
+| --- | --- |
+| Router (LOW or HIGH) | 32 of 32 right. The labels are the instruction Inkling was given (an easy lookup or a hard coding task), a split that is easy to tell apart; it does not show that the router predicts which tasks Inkling needs effort for. |
+| Expander, question alone | the right note first for 44% (37 of 84), in the first three for 62% |
+| Expander, question plus its words | first 32% (27 of 84), first three 62%. Used on 38 of the 84 questions, where first place fell from 42% to 16%. It wrote the exact topic 8 times in 84. |
+
+So the expander made the shelf search worse, and the two-model cascade is not worth finishing on this evidence: `TNY3` stays a header. The BM25 number matters too: on questions Inkling wrote to avoid the notes' own words, plain BM25 puts the right note first only 44% of the time, far below the 10 of 10 on my own questions above, so the shelf search is the weak part for vague questions. The questions are model-written and the shelf has only 26 notes, so this is one small experiment, not a ruling.
+
+**Not measured.** The chat's other claims: that 40 to 70 percent of queries can stop at the small tiers, and that a larger context and a 4,096-entry vocabulary help the assistant. The cascade's small model had random test weights in the first round; the trained one is measured in the next paragraph. The loop cut was changed from the design: it needs the same 48 letters to have appeared twice before, because a code listing or a JSON list can repeat a line once; `loopRepeats: 1` gives the original rule.
 
 ## Reaching back: how old a machine can run it
 
@@ -230,6 +280,17 @@ The aim is that old hardware keeps working. These are the oldest targets each ed
 | Layer streaming | Same as the JavaScript edition | Also needs `Date.now` and `Object.create`, both ES5 | Node 25 |
 
 What would extend the reach: a C build of the layer streaming for DOS machines (not done), BASIC streaming (not done), and a test on a real old browser or a real DOS machine (not done).
+
+## Backends, bins, skills and a visual check (JavaScript only, added 2026-11-23)
+
+Four plain ES5 files in `js/` sit beside the Inkling code loop. None of them calls a model by itself, and none is wired into `evelyn_inkling_codeloop.js`; you pass what they produce to it.
+
+- `evelyn_registry.js`: three hardware tiers (`potato`, `standard`, `workstation`) that switch features and cap the size of a `.bin`; profiles for the Inkling, Qwen, Nemotron and Muse backends (effort fields, thinking end tag, effort schedules; `registerBackend` adds more); and `BinRegistry`, which picks the `.bin` for a role (`tutor`, `expander`, `router`, `critic`), a backend and a tier, checks its CRC32 and returns `null` when none exists so the caller falls back to BM25 and the backend's schedule. The Muse profile is a placeholder, and no trained role `.bin` exists yet; `tools/train_tny2.py` and `tools/make_role_pairs.js` are the way to make one.
+- `evelyn_skills.js`: a skill engine in the style of Claude Code skills. A skill has triggers, compact invariants, full-text BM25 shelves with a CRC32 on every card, and verifier commands, and `SkillRegistry.prepare(task)` returns the system addition, the top cards and the suggested effort. `pkt.store` answers `searchFull` and `searchScored` like `OffsetShelfStore`, so it goes straight into `EvelynCodeLoop({ store })`. `SKILL.md` files with frontmatter and `##` sections load through `registerMarkdown`.
+- `skill_caldera_graphics.js`: one skill for the CalderaWorld graphics and shot-check work, with 8 shelves and routing to the `tools/test_*.mjs` suites. Its figures come from research notes dated 2026-11-23 and were not re-measured here. Run `node js\skill_caldera_graphics.js` to see what it selects for three sample tasks. Suggested commands are not run by anything; GPU checks are marked as needing approval.
+- `evelyn_visual_craft.js`: two task-agnostic craft notes for three.js scenes (lighting contrast, atmosphere and framing), a `VISUAL_SYSTEM` prompt, and `verifySceneVisuals(THREE, scene, camera)`, which reads the scene graph (no WebGL) and reports a missing key light, ambient light that is too strong, all-`MeshBasicMaterial` scenes, no atmosphere, and a hero subject that fills too little of the view. It cannot judge a picture. `js/test/three_verify_worker.js` runs it when given `visual` as the fifth argument and one more `--allow-fs-read` for `evelyn_visual_craft.js`; without it the benchmark is unchanged. Whether these checks make the generated scenes look better was not measured.
+
+`node js\test\evelyn_skills_tests.js` runs 14 tests of these files with a stub model client and a stand-in for three.js.
 
 ## Tests
 

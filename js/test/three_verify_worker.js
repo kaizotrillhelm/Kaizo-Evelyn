@@ -127,6 +127,14 @@ process.stdin.on("end", function () {
     if (r.camera.position.length() < 1) errors.push("the camera stands at the origin, inside the island");
   } else { errors.push("unknown task " + task); }
 
+  /* optional visual checks (fifth argument "visual"): lighting contrast, materials, atmosphere and framing from
+     js/evelyn_visual_craft.js. Off by default so the structural benchmark stays as it was. The permission model needs
+     one more --allow-fs-read=<js/evelyn_visual_craft.js> for this. */
+  if (process.argv[4] === "visual" && !errors.length) {
+    var VC = require(require("path").join(__dirname, "..", "evelyn_visual_craft.js"));
+    VC.verifySceneVisuals(THREE, r.scene, r.camera, { requireAtmosphere: task !== "cube" }).forEach(function (m) { errors.push(m); });
+  }
+
   if (warns.length) errors.push("three.js warned: " + warns[0].slice(0, 160));
   out();
 });
