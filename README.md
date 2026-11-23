@@ -4,7 +4,7 @@
 
 More: [the portrait, 10 seconds](media/evelyn_face_float.gif) and [the cartridge player, validator, debugger and safety charter](media/evelyn_features.gif).
 
-Evelyn is an offline tutor, adventure game and coding lab for computers with little memory and no network. It is based on the idea from Tiny2.1 This folder holds three editions of it, each with its own tests, plus tests that run the same script through all three and compare the output.
+Evelyn is an offline tutor, adventure game and coding lab for computers with little memory and no network. It is based on Tiny2.1's idea of a small language model. This folder holds three editions of it, each with its own tests, plus tests that run the same script through all three and compare the output.
 
 | Folder | Edition | Runs on |
 | --- | --- | --- |
