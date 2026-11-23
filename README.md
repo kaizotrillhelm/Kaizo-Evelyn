@@ -177,6 +177,67 @@ The code of all 16 scenes of the first round is in [`examples/threejs/`](example
 
 What the checks said for this trial: alone failed (a fifth sphere, the glow around the sun, where four were asked for); the loop with notes off and with notes on passed on the first draft, in 22 and 21 seconds; the two skill setups passed after one repair each, in about 75 seconds, because the skill's checker also runs the visual checks (lighting contrast, materials, atmosphere, framing). Which check the first drafts failed was not recorded in this round. The final code of the loop and notes runs, which were not asked to pass the visual checks, was flagged by them for having no stars, glow or fog. This is one trial in one setup each. All 81 runs of the bench, with their tables, the code of every scene and 8 side-by-side GIFs (cube, solar system, island and a photorealistic still life, two trials each), are in [`results/skills_bench_2026-11-23/`](results/skills_bench_2026-11-23/README.md). The pictures were drawn by `tools/threejs_gifs.py`, which reports file sizes and page errors and does not judge the pictures.
 
+#### Results of the skills bench (2026-11-23, 81 runs)
+
+Inkling 2 Mini (Q4_K_M) on LM Studio's llama.cpp runtime, the RTX 3090, context 102,400 tokens, one request at a time. Five setups on the same tasks and seeds: Inkling alone (effort `high`, no run of its code), the loop with notes off, the loop with notes on, the loop with a skill (`js/evelyn_skills.js`: rules, notes, a visual-quality prompt, and the visual checks inside the loop's checker), and the same with the Caldera graphics skill registered too. Two trials per cell is a small sample. **The LM Studio application's own server was not tested**; every number is from the llama.cpp server. The full tables, the code of every scene and the raw numbers are in [`results/skills_bench_2026-11-23/`](results/skills_bench_2026-11-23/README.md).
+
+Three.js scenes (cube, solar system, island; 30 runs):
+
+| Setup | Runs | First draft passes | Final passes | Calls | Tokens | Seconds | Visual checks clean |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Inkling alone | 6 | 3 of 6 | 3 of 6 | 1.0 | 3949 | 76 | 2 of 3 |
+| Loop, notes off | 6 | 6 of 6 | 6 of 6 | 1.0 | 1916 | 37 | 2 of 6 |
+| Loop, notes on | 6 | 6 of 6 | 6 of 6 | 1.0 | 1220 | 24 | 1 of 6 |
+| Loop + skill | 6 | 1 of 6 | 6 of 6 | 1.8 | 2989 | 60 | 6 of 6 |
+| Loop + skill + Caldera | 6 | 0 of 6 | 6 of 6 | 2.0 | 3474 | 71 | 6 of 6 |
+
+Photorealistic still life (a table, a glass, a metal and a ceramic sphere, a key and a fill light; 10 runs):
+
+| Setup | Runs | First draft passes | Final passes | Calls | Tokens | Seconds | Visual checks clean |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Inkling alone | 2 | 0 of 2 | 0 of 2 | 1.0 | 5904 | 113 | 0 of 0 |
+| Loop, notes off | 2 | 0 of 2 | 2 of 2 | 2.0 | 4188 | 83 | 0 of 2 |
+| Loop, notes on | 2 | 2 of 2 | 2 of 2 | 1.0 | 1719 | 34 | 0 of 2 |
+| Loop + skill | 2 | 0 of 2 | 2 of 2 | 2.0 | 3675 | 75 | 2 of 2 |
+| Loop + skill + Caldera | 2 | 0 of 2 | 2 of 2 | 2.0 | 2780 | 57 | 2 of 2 |
+
+Basic tasks: four small JavaScript functions (32 runs) passed in every setup on the first draft, so they do not separate the setups; alone used about 1,100 tokens and 22 seconds a run, the other setups about 340 tokens and 7 seconds. Three grounded questions about an invented place: alone 0 of 3, notes on 3 of 3, skill 3 of 3 (only 9 of 12 planned runs exist; the server was shut down by another session mid-run and those rows were removed).
+
+What the numbers say, and what they do not:
+
+- Notes on were the fastest and cheapest in the three.js and photorealistic runs. The notes were written by the same hand as the checks, so this shows what retrieval can do when the right note exists, not an unbiased accuracy.
+- Inkling alone failed 5 of its 8 scene runs: a fifth sphere around the sun, three runs that used the whole 6,000-token budget thinking, and one photorealistic run with one physical material instead of two.
+- The skill setups are slower and use more tokens, and they are the only setups where every passing scene was clean for the visual checks (16 of 16). That is by construction: their checker runs the visual checks and sends the errors back. It shows the repair step works; it does not show the scenes look better.
+- In all 4 photorealistic skill runs the first draft threw "document is not defined": the craft note suggests a canvas texture and the task forbids the DOM. The note was not changed, so the results match the committed code.
+- The Caldera skill adds nothing on these tasks and activates anyway, because "three.js" and "r187" are among its triggers.
+- Neither checker looks at a picture; the GIFs below were drawn by `tools/threejs_gifs.py`, which reports sizes and page errors and does not judge them.
+
+All 8 side-by-side GIFs of the run, five setups each in this order: Inkling alone, loop with notes off, loop with notes on, loop + skill, loop + skill + Caldera. The 40 single-setup GIFs are in [`results/skills_bench_2026-11-23/gifs/single/`](results/skills_bench_2026-11-23/gifs/single/).
+
+Spinning cube, trial 1 and trial 2:
+
+![Spinning cube, trial 1, five setups](results/skills_bench_2026-11-23/gifs/cube_run1.gif)
+
+![Spinning cube, trial 2, five setups](results/skills_bench_2026-11-23/gifs/cube_run2.gif)
+
+Solar system, trial 1 and trial 2:
+
+![Solar system, trial 1, five setups](results/skills_bench_2026-11-23/gifs/solar_run1.gif)
+
+![Solar system, trial 2, five setups](results/skills_bench_2026-11-23/gifs/solar_run2.gif)
+
+Low-poly island with instanced trees, trial 1 and trial 2:
+
+![Island, trial 1, five setups](results/skills_bench_2026-11-23/gifs/island_run1.gif)
+
+![Island, trial 2, five setups](results/skills_bench_2026-11-23/gifs/island_run2.gif)
+
+Photorealistic still life, trial 1 and trial 2:
+
+![Photorealistic still life, trial 1, five setups](results/skills_bench_2026-11-23/gifs/photo_run1.gif)
+
+![Photorealistic still life, trial 2, five setups](results/skills_bench_2026-11-23/gifs/photo_run2.gif)
+
 How the pictures were made (`tools/threejs_showcase.py`). Each scene is drawn in a headless Brave with software rendering, so no graphics card was used. The canvas is 384 by 216 and the camera's aspect is set to match. `Math.random` is replaced by a seeded generator so the picture can be drawn again. The island scene does not move, so for it only, the camera circles the origin once; every other scene is drawn exactly as its `update(t)` moves it, 10 pictures a second for 6 seconds. The page blocks every network request from the model's code. Pass and fail come from the checker, `js/test/three_verify_worker.js`. I did not watch the GIFs, so nothing here says how good a scene looks, only whether its code passed the checks. The code files are model output and were not edited; Inkling 2 Mini's terms for reusing its output were not looked up.
 
 ```powershell
