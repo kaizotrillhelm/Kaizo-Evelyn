@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVELYN // NEON TEST SUITE RUNNER</title>
+<style>
+  body { background:#04041c; color:#b8c8dc; font-family:"Consolas","Courier New",monospace; padding:14px; max-width:900px; margin:0 auto; }
+  h2 { color:#28e4fc; border-bottom:2px solid #28e4fc; padding-bottom:6px; margin-top:0; }
+  button { background:#005078; color:#f0f8fc; border:1px solid #48fca8; padding:6px 14px; font-family:inherit; cursor:pointer; font-weight:bold; }
+  pre { background:#030314; border:2px solid #008ca8; padding:12px; white-space:pre-wrap; min-height:300px; line-height:1.45; }
+  .pass { color:#48fca8; } .fail { color:#fc5888; } .hdr { color:#fcd838; }
+</style>
+</head>
+<body>
+  <h2>&#9668;&#9658; EVELYN NEON // SELF-TEST DIAGNOSTICS</h2>
+  <p style="font-size:13px">Runs all unit, canon, storage (real IndexedDB), Web Worker TNY2, SandEngine, and validator tests directly in this browser.</p>
+  <button id="runBtn">Re-Run All Tests</button>
+  <pre id="out"></pre>
+
+<script>
+/* capture console.log from suites that print directly (doctor, charter) into the page */
+window.__lines = [];
+(function () { var o = console.log; console.log = function () { var t = Array.prototype.join.call(arguments, " "); window.__lines.push(t); if (window.__sink) window.__sink(t); o.apply(console, arguments); }; })();
+</script>
+<script src="evelyn_backend.js"></script>
+<script src="evelyn_cartridges.js"></script>
+<script src="evelyn_doctor.js"></script>
+<script src="evelyn_art.js"></script>
+<script src="evelyn_sentinel.js"></script>
+<script src="evelyn_charter.js"></script>
+<script src="evelyn_evolution.js"></script>
+<script src="evelyn_suite_78.js"></script>
+<script src="evelyn_suite_integration.js"></script>
+<script src="evelyn_voice_guard.js"></script>
+<script src="evelyn_director.js"></script>
+<script src="evelyn_frontier.js"></script>
+<script src="evelyn_robotics.js"></script>
+<script src="evelyn_net.js"></script>
+<script src="evelyn_game_xray.js"></script>
+<script src="evelyn_game_xray_gen6.js"></script>
+<script src="evelyn_asset_studio.js"></script>
+<script src="evelyn_3d.js"></script>
+<script src="evelyn_code_forge.js"></script>
+<script src="evelyn_ast_ide.js"></script>
+<script src="evelyn_wasm_accel.js"></script>
+<script src="evelyn_code_engine.js"></script>
+<script src="evelyn_hybrid_rag.js"></script>
+<script src="evelyn_code_power.js"></script>
+<script src="evelyn_lang_core.js"></script>
+<script src="evelyn_manual_compiler.js"></script>
+<script src="evelyn_paper_boost.js"></script>
+<script src="evelyn_paper_boost2.js"></script>
+<script src="evelyn_paper_boost3.js"></script>
+<script src="evelyn_inkling_fast.js"></script>
+<script src="evelyn_late2026_core.js"></script>
+<script src="evelyn_agent_os.js"></script>
+<script src="evelyn_sovereign_local.js"></script>
+<script src="evelyn_chums_data.js"></script>
+<script src="evelyn_chums.js"></script>
+<script src="evelyn_tests.js"></script>
+<script src="evelyn_suite_tests.js"></script>
+<script src="evelyn_director_voice_tests.js"></script>
+<script src="evelyn_frontier_tests.js"></script>
+<script src="evelyn_robotics_tests.js"></script>
+<script src="evelyn_fuzz_tests.js"></script>
+<script src="evelyn_chums_tests.js"></script>
+<script src="evelyn_game_xray_tests.js"></script>
+<script src="evelyn_game_xray_gen6_tests.js"></script>
+<script src="evelyn_asset_studio_tests.js"></script>
+<script src="evelyn_3d_tests.js"></script>
+<script src="evelyn_code_forge_tests.js"></script>
+<script src="evelyn_turbo_tests.js"></script>
+<script src="evelyn_hybrid_rag_tests.js"></script>
+<script src="evelyn_code_power_tests.js"></script>
+<script src="evelyn_lang_core_tests.js"></script>
+<script src="evelyn_manual_compiler_tests.js"></script>
+<script src="evelyn_paper_boost_tests.js"></script>
+<script src="evelyn_paper_boost2_tests.js"></script>
+<script src="evelyn_paper_boost3_tests.js"></script>
+<script src="evelyn_inkling_fast_tests.js"></script>
+<script src="evelyn_late2026_tests.js"></script>
+<script src="evelyn_agent_os_tests.js"></script>
+<script src="evelyn_sovereign_local_tests.js"></script>
+<script src="evelyn_doctor_tests.js"></script>
+<script src="evelyn_charter_tests.js"></script>
+<script>
+(function () {
+  var out = document.getElementById("out");
+  function add(line) {
+    var span = document.createElement("div");
+    if (line.indexOf("[PASS]") === 0) span.className = "pass";
+    else if (line.indexOf("[FAIL]") === 0) span.className = "fail";
+    else if (line.indexOf("===") >= 0) span.className = "hdr";
+    span.textContent = line;
+    out.appendChild(span);
+  }
+  window.__sink = add;
+  var suites = [["EvelynTests"], ["EvelynSuiteTests"], ["EvelynDirectorVoiceTests"], ["EvelynFrontierTests"], ["EvelynRoboticsTests"], ["EvelynFuzzTests"], ["EvelynChumsTests"]];
+  window.__done = false; window.__totals = { pass: 0, fail: 0 };
+  function next(i) {
+    if (i >= suites.length) {
+      /* the doctor and charter suites print as they load, so count their lines now */
+      for (var k = 0; k < window.__lines.length; k++) {
+        if (window.__lines[k].indexOf("[PASS]") === 0) window.__totals.pass++;
+        else if (window.__lines[k].indexOf("[FAIL]") === 0) window.__totals.fail++;
+      }
+      window.__done = true; return;
+    }
+    var S = window[suites[i][0]];
+    if (!S) { add("[FAIL] missing suite " + suites[i][0]); window.__totals.fail++; return next(i + 1); }
+    S.runAll(function (l) { add(l); }, function (p, f) { window.__totals.pass += p; window.__totals.fail += f; next(i + 1); });
+  }
+  function run() { out.innerHTML = ""; window.__done = false; window.__totals = { pass: 0, fail: 0 }; next(0); }
+  document.getElementById("runBtn").onclick = run;
+  /* give the auto-running doctor and charter suites time to print first */
+  setTimeout(run, 1500);
+})();
+</script>
+</body>
+</html>

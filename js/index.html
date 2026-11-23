@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evelyn and her Echoes</title>
+<style>
+  body { font-family: monospace; background: #101418; color: #e6edf3; margin: 0; padding: 14px; max-width: 820px; margin: auto; }
+  h2 { color: #58d68d; margin: 0 0 8px 0; }
+  .bar, .tabs { margin-bottom: 10px; }
+  .bar > *, .tabs > * { margin: 0 6px 6px 0; vertical-align: middle; }
+  button, select, input { background: #1b222c; color: #e6edf3; border: 1px solid #394656; padding: 6px 10px; font-family: monospace; cursor: pointer; }
+  button.active { background: #1f6f50; border-color: #58d68d; }
+  .panel { border: 1px solid #303a46; padding: 12px; background: #141920; }
+  .out { white-space: pre-wrap; background: #0c1014; border: 1px solid #28323e; padding: 10px; min-height: 150px; margin-top: 8px; color: #b7f5d2; }
+  textarea { width: 100%; box-sizing: border-box; height: 110px; background: #0c1014; color: #ffd580; border: 1px solid #394656; font-family: monospace; padding: 8px; }
+  .small { font-size: 12px; color: #8b949e; }
+  #askInput, #advInput { width: 60%; }
+</style>
+</head>
+<body>
+  <h2>EVELYN and her Echoes // offline tutor, adventure and coding</h2>
+  <div class="bar small">
+    <span>Learning style:</span>
+    <select id="modeSel">
+      <option value="M">Mix (read + audio + example)</option>
+      <option value="R">Reading only</option>
+      <option value="A">Audio first</option>
+      <option value="D">Learning by doing</option>
+    </select>
+    <span id="xpBadge">XP: 0</span>
+    <label>Load .BIN: <input type="file" id="binFile" accept=".bin"></label>
+    <label>Add .TXT library: <input type="file" id="txtFile" accept=".txt"></label>
+  </div>
+
+  <div class="tabs">
+    <button id="tabAsk" class="active">1. Knowledge and tutor</button>
+    <button id="tabAdv">2. Desert adventure</button>
+    <button id="tabCode">3. Coding lab</button>
+  </div>
+
+  <div id="viewAsk" class="panel">
+    <div class="bar">
+      <input id="askInput" placeholder="Ask anything (water purification, fractions, 18*4, peru)">
+      <button id="askBtn">Ask</button>
+    </div>
+    <div id="askOut" class="out">The library is ready offline. Ask a question, or load a .TXT encyclopedia or a TINY.BIN.</div>
+  </div>
+
+  <div id="viewAdv" class="panel" style="display:none">
+    <div class="bar">
+      <input id="advInput" placeholder="LOOK, GO east, HINT, or your answer">
+      <button id="advBtn">Send</button>
+    </div>
+    <div id="advOut" class="out"></div>
+  </div>
+
+  <div id="viewCode" class="panel" style="display:none">
+    <div class="bar">
+      <select id="lessonSel"></select>
+      <button id="runCodeBtn">Run code</button>
+    </div>
+    <div id="lessonGoal" class="small" style="margin-bottom:6px"></div>
+    <textarea id="codeInput"></textarea>
+    <div id="codeOut" class="out"></div>
+  </div>
+
+<script src="evelyn_core.js"></script>
+<script>
+(function () {
+  var lib = new Evelyn.LibraryStore();
+  if (!lib.load()) { lib.loadStarterPack(); lib.save(); }
+
+  var pm = new Evelyn.ProfileManager();
+  pm.load();
+
+  var model = new Evelyn.Tiny2Model();
+  var tutor = new Evelyn.SwarmTutor(lib, pm, model);
+  var adv = new Evelyn.AdventureEngine(pm, lib);
+
+  var modeSel = document.getElementById("modeSel");
+  var xpBadge = document.getElementById("xpBadge");
+  modeSel.value = pm.profile.mode;
+
+  function refreshHeader() {
+    var st = lib.stats();
+    xpBadge.textContent = "XP: " + pm.profile.xp + " | Library: " + st.entries + " compressed entries" + (model.loaded ? " | TNY2 loaded" : "");
+  }
+  refreshHeader();
+
+  modeSel.onchange = function () { pm.setMode(modeSel.value); };
+
+  document.getElementById("binFile").onchange = function (ev) {
+    var f = ev.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var info = model.loadFromArrayBuffer(r.result);
+        document.getElementById("askOut").textContent = "Loaded TNY2 weights: D=" + info.D + " L=" + info.L + " H=" + info.H;
+        refreshHeader();
+      } catch (e) { alert(e.message); }
+    };
+    r.readAsArrayBuffer(f);
+  };
+
+  document.getElementById("txtFile").onchange = function (ev) {
+    var f = ev.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var n = lib.ingestPlainText(r.result, f.name);
+      document.getElementById("askOut").textContent = "Compressed and stored " + n + " permanent entries from " + f.name;
+      refreshHeader();
+    };
+    r.readAsText(f);
+  };
+
+  function showTab(which) {
+    document.getElementById("viewAsk").style.display = which === "ask" ? "" : "none";
+    document.getElementById("viewAdv").style.display = which === "adv" ? "" : "none";
+    document.getElementById("viewCode").style.display = which === "code" ? "" : "none";
+    document.getElementById("tabAsk").className = which === "ask" ? "active" : "";
+    document.getElementById("tabAdv").className = which === "adv" ? "active" : "";
+    document.getElementById("tabCode").className = which === "code" ? "active" : "";
+    if (which === "adv") document.getElementById("advOut").textContent = adv.look();
+  }
+  document.getElementById("tabAsk").onclick = function () { showTab("ask"); };
+  document.getElementById("tabAdv").onclick = function () { showTab("adv"); };
+  document.getElementById("tabCode").onclick = function () { showTab("code"); };
+
+  function doAsk() {
+    var q = document.getElementById("askInput").value.replace(/^\s+|\s+$/g, "");
+    if (!q) return;
+    var res = tutor.ask(q);
+    document.getElementById("askOut").textContent = res.text + "\n\n[" + res.source + "]";
+    refreshHeader();
+  }
+  document.getElementById("askBtn").onclick = doAsk;
+  document.getElementById("askInput").onkeydown = function (e) { if (e.key === "Enter" || e.keyCode === 13) doAsk(); };
+
+  function doAdv() {
+    var c = document.getElementById("advInput").value.replace(/^\s+|\s+$/g, "");
+    document.getElementById("advInput").value = "";
+    document.getElementById("advOut").textContent = adv.command(c || "LOOK");
+    refreshHeader();
+  }
+  document.getElementById("advBtn").onclick = doAdv;
+  document.getElementById("advInput").onkeydown = function (e) { if (e.key === "Enter" || e.keyCode === 13) doAdv(); };
+
+  var lSel = document.getElementById("lessonSel");
+  for (var i = 0; i < Evelyn.CODING_LESSONS.length; i++) {
+    var opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = "Lesson " + Evelyn.CODING_LESSONS[i].id + ": " + Evelyn.CODING_LESSONS[i].title;
+    lSel.appendChild(opt);
+  }
+  function loadLesson(idx) {
+    var L = Evelyn.CODING_LESSONS[idx];
+    document.getElementById("lessonGoal").textContent = "Goal: " + L.goal;
+    document.getElementById("codeInput").value = L.starter;
+  }
+  lSel.onchange = function () { loadLesson(Number(lSel.value)); };
+  loadLesson(0);
+
+  document.getElementById("runCodeBtn").onclick = function () {
+    var res = Evelyn.CodeSandbox.run(document.getElementById("codeInput").value);
+    if (!res.ok) {
+      document.getElementById("codeOut").textContent = "Error: " + res.error;
+      return;
+    }
+    pm.recordSuccess("coding");
+    refreshHeader();
+    document.getElementById("codeOut").textContent =
+      "Output:\n" + (res.output.join("\n") || "(none)") + "\n\nTurtle grid (@ = turtle):\n" + res.grid;
+  };
+})();
+</script>
+</body>
+</html>

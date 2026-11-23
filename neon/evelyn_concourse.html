@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVELYN // NEON CONCOURSE, WORKER TNY2 & CARTRIDGE WORKSHOP</title>
+<style>
+  :root {
+    --bg:#04041c; --title:#141c58; --bar:#005078; --panel:#080a28;
+    --cyan:#28e4fc; --cdim:#008ca8; --mint:#48fca8; --pink:#fc48e8;
+    --amber:#fcd838; --hot:#fc5888; --blue:#4888fc; --bright:#f0f8fc; --text:#b8c8dc; --dim:#5c6ea0;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"Consolas","Courier New",monospace; font-size:14px; }
+  .titlebar { background:var(--title); color:var(--cyan); padding:6px 12px; display:flex; flex-wrap:wrap; justify-content:space-between; border-bottom:2px solid var(--cyan); }
+  .titlebar strong { color:var(--bright); letter-spacing:3px; }
+  .bar { display:flex; flex-wrap:wrap; gap:5px; padding:6px 10px; background:#070824; border-bottom:1px solid var(--cdim); align-items:center; }
+  button, select, input, textarea { font-family:inherit; font-size:13px; background:#0c1030; color:var(--bright); border:1px solid var(--cdim); padding:5px 8px; }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--cyan); color:var(--cyan); }
+  button.active { background:var(--bar); border-color:var(--mint); font-weight:bold; }
+  button.on-pink { background:#2a1448; border-color:var(--pink); color:var(--amber); }
+  button.on-xray { background:#003830; border-color:var(--mint); color:var(--mint); }
+  .grid { display:grid; grid-template-columns:1fr 255px; gap:10px; padding:10px; max-width:1180px; margin:0 auto; }
+  @media (max-width:820px) { .grid { grid-template-columns:1fr; } }
+  .box { border:2px solid var(--cyan); background:var(--panel); padding:10px; margin-bottom:10px; }
+  .box.sec { border-color:var(--cdim); }
+  .box.xray { border-color:var(--mint); background:#04141c; }
+  .btitle { display:inline-block; background:var(--bar); color:var(--bright); padding:1px 8px; font-size:12px; font-weight:bold; margin:-18px 0 8px 4px; border:1px solid var(--cyan); }
+  .row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
+  .out { background:#030314; border:1px solid var(--cdim); padding:8px; min-height:110px; max-height:260px; overflow-y:auto; white-space:pre-wrap; color:var(--mint); }
+  .pre { background:#020410; border:1px solid var(--mint); padding:7px; color:var(--amber); font-size:12px; white-space:pre-wrap; }
+  canvas { display:block; background:#020210; border:1px solid var(--cyan); max-width:100%; touch-action:none; }
+  .meter { display:flex; align-items:center; gap:6px; margin:4px 0; font-size:12px; }
+  .mtrack { flex:1; height:11px; background:#0d122c; border:1px solid #243058; }
+  .mfill { height:100%; width:0%; background:var(--mint); }
+  .heat { display:grid; grid-template-columns:repeat(18,1fr); gap:2px; height:13px; margin:4px 0 8px; }
+  .heat div { background:#141a38; }
+  .status { position:sticky; bottom:0; background:var(--bar); color:var(--bg); padding:4px 10px; font-size:12px; display:flex; flex-wrap:wrap; justify-content:space-between; font-weight:bold; border-top:1px solid var(--cyan); }
+  .status b { color:var(--bright); } .status .on { color:var(--amber); }
+  textarea { width:100%; height:135px; color:var(--amber); background:#030314; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="titlebar">
+  <div>&#9668;&#9658; <strong>E V E L Y N</strong> &middot; NEON CONCOURSE &middot; <span id="hdrMode">IDB + WORKER READY</span></div>
+  <div><span style="color:var(--mint);font-weight:bold">&#9632; ONLINE</span> &middot; <span id="hdrProf">Learner 1 [M] XP:0</span> &middot; <span id="hdrTime">--:-- AM</span></div>
+</div>
+
+<div class="bar">
+  <button id="viewEcho" class="active">1. Concourse Echo</button>
+  <button id="viewPlay">2. Cartridge Player</button>
+  <button id="viewWorkshop">3. Workshop &amp; Validator</button>
+  <button id="viewParent">4. Parent Read-Out</button>
+  <button id="viewLab">5. Lab</button>
+  <select id="cartSelect"></select>
+  <button id="btnToy">Toy Mode: OFF</button>
+  <button id="btnXray">X-Ray: OFF</button>
+</div>
+
+<div class="grid">
+  <div>
+    <!-- VIEW 1: CONCOURSE ECHO & INDEXEDDB SHELVES -->
+    <div id="sec-echo" class="box">
+      <div class="btitle">EVELYN CONCOURSE // ASYNC WORKER TNY2 &amp; PACKED SHELVES</div>
+      <div class="row">
+        <label>Profile:
+          <select id="profSel">
+            <option value="learner1">Learner 1 (shorts)</option>
+            <option value="learner2">Learner 2 (pants)</option>
+            <option value="parent">Parent / Teacher</option>
+          </select>
+        </label>
+        <label>Mode:
+          <select id="modeSel">
+            <option value="M">M: Mix</option><option value="R">R: Read</option>
+            <option value="A">A: Audio</option><option value="D">D: Do</option>
+          </select>
+        </label>
+        <label style="font-size:12px;color:var(--cyan)">TINY.BIN: <input type="file" id="binFile" accept=".bin" style="width:125px"></label>
+        <label style="font-size:12px;color:var(--mint)">+TXT Shelf: <input type="file" id="txtFile" accept=".txt" style="width:125px"></label>
+        <label style="font-size:12px;color:var(--amber)">Retro X-Ray: <input type="file" id="retroFile" style="width:125px"></label>
+      </div>
+      <div id="chatLog" class="out"></div>
+      <div class="row" style="margin-top:8px;margin-bottom:0">
+        <span style="color:var(--pink);font-weight:bold">&#9658;</span>
+        <input id="chatIn" style="flex:1" placeholder="Ask about Static Choir Hounds, Coccyx Corale*, Palm Harbour, or 7*8...">
+        <button id="chatGo">Ask Echo</button>
+      </div>
+    </div>
+
+    <!-- VIEW 2: UNIFIED DATA-DRIVEN CARTRIDGE PLAYER -->
+    <div id="sec-play" class="box hidden">
+      <div class="btitle" id="playTitle">CARTRIDGE STAGE</div>
+      <div class="row">
+        <button id="playStart" class="active">Start / Reset</button>
+        <span id="playExtraControls" class="row" style="margin:0"></span>
+        <span id="playHud" style="color:var(--amber)"></span>
+      </div>
+      <div id="playGoal" style="font-size:13px;color:var(--cyan);margin-bottom:6px"></div>
+      <div id="playPrompt" style="font-size:15px;color:var(--bright);font-weight:bold;margin-bottom:6px"></div>
+      <canvas id="playCanvas" width="540" height="240" class="hidden"></canvas>
+      <canvas id="sandCanvas" width="80" height="44" style="width:400px;height:220px;image-rendering:pixelated" class="hidden"></canvas>
+      <div id="playBtns" class="row" style="margin-top:8px"></div>
+      <div id="playLog" class="out" style="min-height:90px"></div>
+    </div>
+
+    <!-- VIEW 3: CARTRIDGE WORKSHOP, VALIDATOR & .EVELYNPACK -->
+    <div id="sec-workshop" class="box hidden">
+      <div class="btitle">CARTRIDGE WORKSHOP // .CART.JSON EDITOR, CANON VALIDATOR &amp; .EVELYNPACK</div>
+      <div class="row">
+        <button id="wkValidate">Run Rule Validator</button>
+        <button id="wkLoadPlay" class="active">Save to IDB &amp; Play</button>
+        <button id="wkExportPack">Export .evelynpack</button>
+        <label style="font-size:12px">Import Pack: <input type="file" id="wkImportPack" style="width:130px"></label>
+      </div>
+      <textarea id="wkJson"></textarea>
+      <div id="wkReport" class="out" style="min-height:95px;margin-top:8px">Edit any .cart.json above and click Run Rule Validator to check Echo length, 12-hour AM/PM clocks, Julian pronouns, Coccyx Corale*, and element rules.</div>
+    </div>
+
+    <!-- VIEW 4: PARENT / TEACHER READ-OUT (SM-2 DUE + ADAPTIVE PACING) -->
+    <div id="sec-parent" class="box hidden">
+      <div class="btitle">PARENT &amp; TEACHER READ-OUT // SM-2 SPACED REPETITION &amp; MODALITY</div>
+      <div id="parentOut" class="out" style="min-height:220px"></div>
+    </div>
+
+    <!-- VIEW 5: LAB (round-2 modules: Game X-Ray, Asset Studio + IPS, 3D viewer, Code Forge + AST IDE, module status) -->
+    <div id="sec-lab" class="box hidden">
+      <div class="btitle">LAB // TAKE IT APART, CHANGE IT, DRAW IT, CODE IT (ALL ON THIS DEVICE)</div>
+      <div class="row">
+        <button id="labTab-xray" class="active">Game X-Ray</button>
+        <button id="labTab-asset">Asset Studio</button>
+        <button id="labTab-view3d">3D Viewer</button>
+        <button id="labTab-code">Code Forge &amp; IDE</button>
+        <button id="labTab-status">Module Status</button>
+      </div>
+      <div id="lab-xray" class="row">
+        <label style="font-size:12px;color:var(--amber)">Game file: <input type="file" id="labRetro" style="width:150px"></label>
+        <button id="labRetroSample">Try a made-up cartridge</button>
+        <span style="font-size:12px;color:var(--dim)">NES, Game Boy, WAD, DOS, ISO, CHIP-8, Mega Drive, N64, PS1, GBA, Dreamcast, GameCube, PS2. Nothing is uploaded.</span>
+      </div>
+      <div id="lab-asset" class="row hidden">
+        <button id="labIpsDemo">IPS demo (made-up file)</button>
+        <label style="font-size:12px">Original: <input type="file" id="labOrig" style="width:105px"></label>
+        <label style="font-size:12px">Changed: <input type="file" id="labMod" style="width:105px"></label>
+        <button id="labIpsMake">Make .ips</button>
+        <label style="font-size:12px">File to patch: <input type="file" id="labRom" style="width:105px"></label>
+        <label style="font-size:12px">.ips: <input type="file" id="labIps" style="width:105px"></label>
+        <button id="labIpsApply">Apply .ips to a copy</button>
+        <span style="font-size:12px;color:var(--dim)">Works only on files you pick. A patch holds only the changed bytes. No game data ships with Evelyn.</span>
+      </div>
+      <div id="lab-view3d" class="hidden">
+        <div class="row">
+          <label style="font-size:12px">Mesh: <select id="lab3dMesh"><option value="cube">Cube</option><option value="glider">Glider</option></select></label>
+          <label style="font-size:12px">.OBJ: <input type="file" id="lab3dFile" accept=".obj" style="width:115px"></label>
+          <label style="font-size:12px">Tilt <input id="lab3dRx" type="range" min="0" max="314" value="40"></label>
+          <label style="font-size:12px">Turn <input id="lab3dRy" type="range" min="0" max="314" value="60"></label>
+        </div>
+        <canvas id="lab3dCanvas" width="160" height="120" style="width:480px;image-rendering:pixelated"></canvas>
+        <div id="lab3dInfo" style="font-size:12px;color:var(--dim)"></div>
+      </div>
+      <div id="lab-code" class="hidden">
+        <div class="row">
+          <input id="labSql" style="flex:1" value="SELECT item, coins FROM orders ORDER BY coins DESC">
+          <button id="labSqlRun">Run SQL (orders table)</button>
+        </div>
+        <textarea id="labCodeIn" style="height:80px">var total = 0;
+function addTwo(a, b) { return a + b; }
+total = addTwo(5);
+let late = ghost + 1;</textarea>
+        <div class="row" style="margin-top:6px"><button id="labLint">Check this code (AST IDE)</button></div>
+      </div>
+      <div id="lab-status" class="hidden"><pre id="labStatus" class="pre"></pre></div>
+      <div id="labOut" class="out" style="min-height:110px;margin-top:8px">Pick a tab, then a file or a sample. The answer appears here.</div>
+    </div>
+
+    <!-- X-RAY GLASS BOX WITH PAUSE & SINGLE-STEP (+1 FRAME) DEBUGGER -->
+    <div id="xrayBox" class="box xray hidden">
+      <div class="btitle" style="border-color:var(--mint);background:#004838">X-RAY GLASS BOX // SINGLE-STEP DEBUGGER</div>
+      <div class="row">
+        <button id="xrPause">Pause Loop</button>
+        <button id="xrStep">Step +1 Frame</button>
+        <label style="font-size:12px">Speed: <input id="xrSpeed" type="range" min="0.4" max="2.0" step="0.1" value="1.0"> <span id="xrSpeedVal">1.0x</span></label>
+        <label style="font-size:12px">Seed: <input id="xrSeed" value="2026" style="width:70px"></label>
+      </div>
+      <div id="xrVars" class="pre"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: TINY 2.1 LIVE NEURAL MONITOR -->
+  <div class="box sec">
+    <div class="btitle">NEURAL MONITOR</div>
+    <div style="font-size:11px;color:var(--dim)">LAYER ACTIVITY (WORKER TNY2)</div>
+    <div class="meter"><span style="color:var(--cyan)">L1</span><div class="mtrack"><div id="m1" class="mfill"></div></div></div>
+    <div class="meter"><span style="color:var(--cyan)">L2</span><div class="mtrack"><div id="m2" class="mfill" style="background:var(--cyan)"></div></div></div>
+    <div class="meter"><span style="color:var(--cyan)">L3</span><div class="mtrack"><div id="m3" class="mfill"></div></div></div>
+    <div class="meter"><span style="color:var(--cyan)">L4</span><div class="mtrack"><div id="m4" class="mfill" style="background:var(--cyan)"></div></div></div>
+    <div style="font-size:11px;color:var(--dim);margin-top:8px">CONFIDENCE</div>
+    <div class="meter"><div class="mtrack"><div id="mC" class="mfill"></div></div><span id="mCT" style="width:36px;text-align:right;color:var(--bright)">--%</span></div>
+    <div style="font-size:11px;color:var(--dim)">LAST LETTERS / CHECKS</div>
+    <div class="heat" id="heat"></div>
+    <div style="font-size:11px;color:var(--dim)">SPEED</div>
+    <div id="mSpd" style="margin-bottom:6px">0.0 letters/s</div>
+    <div style="font-size:11px;color:var(--dim)">HOST SCORE (DR CANDOR)</div>
+    <div id="candor" style="font-size:12px;color:var(--amber);min-height:42px;margin-bottom:6px">Ready to launch a cartridge? Pick one above. Zeep zorp, team.</div>
+    <div style="font-size:11px;color:var(--dim)">STORAGE &amp; SCHEDULER</div>
+    <div id="dbStat" style="font-size:12px;color:var(--mint)">Opening IndexedDB...</div>
+  </div>
+</div>
+
+<div class="status">
+  <div>
+    <span><b>F2</b> Sound <span id="stS" class="on">ON</span></span> &nbsp;
+    <span><b>F3</b> Voice <span id="stV" class="on">ROBOT</span></span> &nbsp;
+    <span><b>F4</b> Creativity <span id="stC" class="on">0</span></span>
+  </div>
+  <div id="stR">EVELYN NEON ENGINE</div>
+</div>
+
+<script src="evelyn_backend.js"></script>
+<script src="evelyn_cartridges.js"></script>
+<script src="evelyn_doctor.js"></script>
+<script src="evelyn_art.js"></script>
+<script src="evelyn_sentinel.js"></script>
+<script src="evelyn_charter.js"></script>
+<script src="evelyn_evolution.js"></script>
+<script src="evelyn_suite_78.js"></script>
+<script src="evelyn_suite_integration.js"></script>
+<script src="evelyn_voice_guard.js"></script>
+<script src="evelyn_director.js"></script>
+<script src="evelyn_frontier.js"></script>
+<script src="evelyn_robotics.js"></script>
+<script src="evelyn_net.js"></script>
+<script src="evelyn_game_xray.js"></script>
+<script src="evelyn_game_xray_gen6.js"></script>
+<script src="evelyn_asset_studio.js"></script>
+<script src="evelyn_3d.js"></script>
+<script src="evelyn_code_forge.js"></script>
+<script src="evelyn_ast_ide.js"></script>
+<script src="evelyn_wasm_accel.js"></script>
+<script src="evelyn_code_engine.js"></script>
+<script src="evelyn_hybrid_rag.js"></script>
+<script src="evelyn_code_power.js"></script>
+<script src="evelyn_lang_core.js"></script>
+<script src="evelyn_manual_compiler.js"></script>
+<script src="evelyn_paper_boost.js"></script>
+<script src="evelyn_paper_boost2.js"></script>
+<script src="evelyn_paper_boost3.js"></script>
+<script src="evelyn_inkling_fast.js"></script>
+<script src="evelyn_late2026_core.js"></script>
+<script src="evelyn_agent_os.js"></script>
+<script src="evelyn_sovereign_local.js"></script>
+<script src="evelyn_chums_data.js"></script>
+<script src="evelyn_chums.js"></script>
+<script src="evelyn_lab.js"></script>
+<script>
+(function () {
+  "use strict";
+  var B = window.EvelynBackend, C = window.EvelynCartridges;
+  var ui = { view: "echo", toy: false, xray: false, paused: false, stepOnce: false, speed: 1.0, creat: 0, heat: [], curCart: null, rng: B.createRng(2026) };
+
+  var profiles = {
+    curId: "learner1",
+    map: {
+      learner1: { name: "Learner 1", mode: "M", xp: 0, trophies: [], sr: {}, recent8: [] },
+      learner2: { name: "Learner 2", mode: "D", xp: 0, trophies: [], sr: {}, recent8: [] },
+      parent:   { name: "Parent",    mode: "R", xp: 0, trophies: [], sr: {}, recent8: [] }
+    }
+  };
+  function curP() { return profiles.map[profiles.curId]; }
+  function saveProfiles() {
+    B.EvelynDB.put("profiles", "all", profiles.map);
+    try { if (window.EvelynSentinel) { if (!window.__abStore) window.__abStore = new window.EvelynSentinel.ABStore(window.localStorage); window.__abStore.save("evelyn_profiles", profiles.map); } } catch (eAB) {}
+    var p = curP();
+    document.getElementById("modeSel").value = p.mode;
+    document.getElementById("hdrProf").textContent = p.name + " [" + p.mode + "] XP:" + p.xp;
+    renderParent();
+  }
+
+  /* Monitor UI */
+  var heatEl = document.getElementById("heat");
+  for (var i = 0; i < 18; i++) heatEl.appendChild(document.createElement("div"));
+  function setMon(acts, conf, lps, candor) {
+    for (var l = 0; l < 4; l++) document.getElementById("m" + (l + 1)).style.width = Math.min(100, Math.round((acts[l] || 0) * 100)) + "%";
+    var cp = Math.min(100, Math.round((conf || 0) * 100));
+    var mc = document.getElementById("mC"); mc.style.width = cp + "%";
+    mc.style.background = cp > 80 ? "var(--mint)" : cp > 50 ? "var(--amber)" : "var(--hot)";
+    document.getElementById("mCT").textContent = cp + "%";
+    ui.heat.push(cp); if (ui.heat.length > 18) ui.heat.shift();
+    for (var k = 0; k < 18; k++) heatEl.children[k].style.background = k < ui.heat.length ? (ui.heat[k] > 80 ? "var(--mint)" : ui.heat[k] > 50 ? "var(--amber)" : "var(--hot)") : "#141a38";
+    if (lps !== null) document.getElementById("mSpd").textContent = lps.toFixed(1) + " letters/s";
+    if (candor) document.getElementById("candor").textContent = candor;
+  }
+
+  function tickClock() {
+    var d = new Date();
+    document.getElementById("hdrTime").textContent = C.fmtClock12(d.getHours() * 60 + d.getMinutes());
+  }
+  tickClock(); setInterval(tickClock, 15000);
+
+  /* Cartridge Registry (built-ins + IndexedDB custom cartridges) */
+  var allCarts = C.DEFAULT_CARTRIDGES.slice(0);
+  function refreshCartDropdown() {
+    var sel = document.getElementById("cartSelect");
+    sel.innerHTML = "";
+    for (var i = 0; i < allCarts.length; i++) {
+      var o = document.createElement("option"); o.value = i;
+      o.textContent = allCarts[i].title + " [" + allCarts[i].engine + "]";
+      sel.appendChild(o);
+    }
+    ui.curCart = allCarts[Number(sel.value) || 0];
+    document.getElementById("wkJson").value = JSON.stringify(ui.curCart, null, 2);
+  }
+
+  /* =========================================================================
+     CONCOURSE ECHO CHAT (ASYNC WORKER TNY2 + PINNED KV21 + FACT VERIFIER)
+     ========================================================================= */
+  var chatLog = document.getElementById("chatLog");
+  function pushChat(html) {
+    var d = document.createElement("div"); d.style.marginBottom = "6px"; d.innerHTML = html;
+    chatLog.appendChild(d); chatLog.scrollTop = chatLog.scrollHeight;
+  }
+  function askEcho(q) {
+    q = String(q || "").trim(); if (!q) return;
+    pushChat("<span style='color:var(--pink);font-weight:bold'>YOU &raquo; </span><span style='color:var(--amber)'>" + q.replace(/</g, "&lt;") + "</span>");
+    var hits = B.ShelfLibrary.search(q, 1);
+    var fact = hits.length ? hits[0].fact : "";
+    var src = hits.length ? "[" + hits[0].src + "]" : "";
+
+    B.EchoWorker.think(q, ui.creat, function (err, res) {
+      var nn = (!err && res && res.text) ? B.EchoWorker.verifyAgainstShelf(res.text, fact).text : "";
+      var out = fact || nn || "No local shelf match yet. Drop TINY.BIN or a .txt file above, or ask about Coccyx Corale*, Frostgate, or Static Choir Hounds.";
+      if (fact && nn) out = fact + "\n[TNY2]: " + nn;
+      pushChat("<span style='color:var(--cyan);font-weight:bold'>[Echo] &raquo; </span><span style='color:var(--mint)'>" + out.replace(/\n/g, "<br>") + "</span> <span style='color:var(--blue);font-size:12px'>" + src + "</span>");
+      setMon(res && res.acts ? res.acts : [0.8, 0.85, 0.75, 0.9], fact ? 0.96 : (res ? res.conf : 0.4), res && res.lps ? res.lps : 45, "Source verified? " + (src || "TNY2") + ". Zeep zorp, team.");
+      if (curP().mode === "A" || curP().mode === "M") B.AudioFX.speak(fact || out);
+    });
+  }
+
+  /* =========================================================================
+     UNIFIED DATA-DRIVEN CARTRIDGE RUNNER (SHOOTER / DETECTIVE / JOURNEY / MAZE / ALCHEMY)
+     ========================================================================= */
+  var runner = {
+    active: false, idx: 0, streak: 0, score: 0, frame: 0,
+    shipX: 270, pulse: "light", targets: [], shots: [], keys: {},
+    mzGrid: ["###########","#P..#..G..#","#.#.#.###.#","#.#...#...#","#.#####.#.#","#.....#..E#","###########"],
+    px: 1, py: 1, clockMin: 547, gateLocked: true
+  };
+
+  function loadCartridge(cart) {
+    ui.curCart = cart;
+    ui.rng = B.createRng(Number(document.getElementById("xrSeed").value) || 2026);
+    runner.active = true; runner.idx = 0; runner.streak = 0; runner.score = 0; runner.frame = 0;
+    runner.shots = []; runner.targets = []; runner.px = 1; runner.py = 1; runner.clockMin = 547; runner.gateLocked = true;
+
+    document.getElementById("playTitle").textContent = cart.title.toUpperCase() + " // " + cart.engine.toUpperCase() + " (" + cart.series + ")";
+    document.getElementById("playGoal").textContent = "Goal: " + cart.goal;
+    document.getElementById("playLog").textContent = cart.echoLine;
+    document.getElementById("playBtns").innerHTML = "";
+    document.getElementById("playExtraControls").innerHTML = "";
+
+    var cv = document.getElementById("playCanvas"), scv = document.getElementById("sandCanvas");
+    cv.classList.toggle("hidden", cart.engine !== "shooter" && cart.engine !== "maze");
+    scv.classList.toggle("hidden", cart.engine !== "alchemy");
+
+    if (cart.engine === "shooter") {
+      ["light","holy","eldritch","darkness"].forEach(function (el) {
+        var b = document.createElement("button"); b.textContent = el.toUpperCase();
+        if (el === runner.pulse) b.className = "active";
+        b.onclick = function () {
+          runner.pulse = el;
+          var kids = document.getElementById("playExtraControls").children;
+          for (var i = 0; i < kids.length; i++) kids[i].className = kids[i].textContent.toLowerCase() === el ? "active" : "";
+        };
+        document.getElementById("playExtraControls").appendChild(b);
+      });
+      spawnShooterWave();
+    } else if (cart.engine === "alchemy") {
+      C.SandEngine.init(scv);
+      [["Sand",1],["Water",2],["Fire",3],["Stone",5],["Seed",6],["Erase",0]].forEach(function (m) {
+        var b = document.createElement("button"); b.textContent = m[0];
+        if (m[1] === C.SandEngine.mat) b.className = "active";
+        b.onclick = function () { C.SandEngine.mat = m[1]; };
+        document.getElementById("playExtraControls").appendChild(b);
+      });
+      document.getElementById("playPrompt").textContent = cart.items[0].q;
+    } else if (cart.engine === "maze") {
+      [["Up",0,-1],["Left",-1,0],["Down",0,1],["Right",1,0]].forEach(function (d) {
+        var b = document.createElement("button"); b.textContent = d[0];
+        b.onclick = function () { moveMaze(d[1], d[2]); };
+        document.getElementById("playExtraControls").appendChild(b);
+      });
+      document.getElementById("playPrompt").textContent = "Reach E (Room P-1) before 12:00 PM! Clock: " + C.fmtClock12(runner.clockMin);
+      drawMaze();
+    } else {
+      showChoiceItem();
+    }
+  }
+
+  function nextItemPick() {
+    var items = ui.curCart.items;
+    var due = B.Scheduler.dueIds(curP());
+    for (var i = 0; i < items.length; i++) {
+      if (due.indexOf(items[i].id) >= 0) return items[i];
+    }
+    return items[runner.idx % items.length];
+  }
+
+  function spawnShooterWave() {
+    var item = nextItemPick();
+    runner.curItem = item;
+    document.getElementById("playPrompt").textContent = "Target: " + item.q + " | Pulse: " + runner.pulse.toUpperCase();
+    var opts = [item.ans].concat(item.wrong).sort(function () { return ui.rng() - 0.5; });
+    runner.targets = [];
+    var spd = (ui.toy ? 0.2 : 0.38) * B.Scheduler.adaptiveSpeed(curP());
+    for (var i = 0; i < opts.length; i++) {
+      runner.targets.push({ x: 75 + i * 130, y: 26 + (i % 2) * 16, vy: spd, text: opts[i], ok: opts[i] === item.ans, r: 23 });
+    }
+  }
+
+  function showChoiceItem() {
+    var item = ui.curCart.items[runner.idx % ui.curCart.items.length];
+    runner.curItem = item;
+    var stopPrefix = (ui.curCart.engine === "journey" && item.stop !== undefined) ? "[MILE " + C.GRAND_ROAD[item.stop].mile + " - " + C.GRAND_ROAD[item.stop].name + "] " : "";
+    document.getElementById("playPrompt").textContent = stopPrefix + item.q;
+    if (curP().mode === "A") B.AudioFX.speak(item.q);
+    var opts = [item.ans].concat(item.wrong).sort(function () { return ui.rng() - 0.5; });
+    var box = document.getElementById("playBtns"); box.innerHTML = "";
+    opts.forEach(function (o) {
+      var b = document.createElement("button"); b.textContent = o;
+      b.onclick = function () {
+        var log = document.getElementById("playLog");
+        if (o === item.ans) {
+          runner.streak++; runner.score += ui.toy ? 0 : 15; runner.idx++;
+          B.AudioFX.ok();
+          B.Scheduler.record(curP(), item.id, true);
+          curP().xp += ui.toy ? 0 : 10; saveProfiles();
+          log.textContent += "\n-> CORRECT [" + item.shelf + "] " + item.failRule;
+          setMon([0.9,0.9,0.85,0.95], 0.98, 50, "Correct on " + ui.curCart.title + "? Streak " + runner.streak + ". Zeep zorp, team.");
+          showChoiceItem();
+        } else {
+          runner.streak = 0; B.AudioFX.bad();
+          B.Scheduler.record(curP(), item.id, false); saveProfiles();
+          log.textContent += "\n-> TRY AGAIN [" + item.shelf + "]: " + item.failRule;
+        }
+        log.scrollTop = log.scrollHeight;
+      };
+      box.appendChild(b);
+    });
+  }
+
+  function moveMaze(dx, dy) {
+    var nx = runner.px + dx, ny = runner.py + dy, ch = runner.mzGrid[ny].charAt(nx);
+    if (ch === "#") { B.AudioFX.bad(); document.getElementById("playLog").textContent = "Connie: \"Not cohort. That is a wall.\""; return; }
+    if (ch === "G" && runner.gateLocked) {
+      var it = ui.curCart.items[0];
+      document.getElementById("playPrompt").textContent = it.q;
+      var box = document.getElementById("playBtns"); box.innerHTML = "";
+      [it.ans].concat(it.wrong).forEach(function (o) {
+        var b = document.createElement("button"); b.textContent = o;
+        b.onclick = function () {
+          if (o === it.ans) { runner.gateLocked = false; box.innerHTML = ""; B.AudioFX.ok(); document.getElementById("playLog").textContent = "Lavinia: \"Approved. Proceed to Room P-1.\""; drawMaze(); }
+          else { B.AudioFX.bad(); document.getElementById("playLog").textContent = "Connie: \"" + it.failRule + "\""; }
+        };
+        box.appendChild(b);
+      });
+      return;
+    }
+    runner.px = nx; runner.py = ny;
+    if (!ui.toy) runner.clockMin += 4;
+    if (ch === "E") {
+      B.AudioFX.ok();
+      curP().xp += ui.toy ? 0 : 20; saveProfiles();
+      document.getElementById("playLog").textContent = C.fmtClock12(runner.clockMin) + " - Maren: \"So. Room P-1 reached before noon.\"";
+    }
+    drawMaze();
+  }
+
+  function drawMaze() {
+    var cv = document.getElementById("playCanvas"), ctx = cv.getContext("2d"), ts = 32;
+    ctx.fillStyle = "#020210"; ctx.fillRect(0, 0, cv.width, cv.height);
+    for (var y = 0; y < runner.mzGrid.length; y++) {
+      for (var x = 0; x < runner.mzGrid[y].length; x++) {
+        var ch = runner.mzGrid[y].charAt(x);
+        if (ch === "#") { ctx.fillStyle = "#142858"; ctx.fillRect(x * ts + 80, y * ts + 6, ts - 2, ts - 2); }
+        else if (ch === "G" && runner.gateLocked) { ctx.fillStyle = "#fcd838"; ctx.fillRect(x * ts + 84, y * ts + 10, ts - 10, ts - 10); }
+        else if (ch === "E") { ctx.fillStyle = "#48fca8"; ctx.fillRect(x * ts + 84, y * ts + 10, ts - 10, ts - 10); }
+      }
+    }
+    ctx.fillStyle = "#fc48e8"; ctx.fillRect(runner.px * ts + 86, runner.py * ts + 12, ts - 14, ts - 14);
+    document.getElementById("playHud").textContent = "Clock: " + C.fmtClock12(runner.clockMin) + " | Gate: " + (runner.gateLocked ? "LOCKED" : "OPEN");
+  }
+
+  function stepShooterFrame() {
+    var cv = document.getElementById("playCanvas"), ctx = cv.getContext("2d");
+    runner.frame++;
+    if (runner.keys.ArrowLeft) runner.shipX = Math.max(24, runner.shipX - 5 * ui.speed);
+    if (runner.keys.ArrowRight) runner.shipX = Math.min(516, runner.shipX + 5 * ui.speed);
+    ctx.fillStyle = "#020210"; ctx.fillRect(0, 0, cv.width, cv.height);
+    var hound = C.CREATURES[0], i, j;
+    for (i = runner.shots.length - 1; i >= 0; i--) {
+      var s = runner.shots[i]; s.y -= 8 * ui.speed;
+      ctx.fillStyle = s.el === "darkness" ? "#8848fc" : "#28e4fc"; ctx.fillRect(s.x - 2, s.y - 10, 4, 12);
+      if (s.y < 0) { runner.shots.splice(i, 1); continue; }
+      for (j = 0; j < runner.targets.length; j++) {
+        var t = runner.targets[j];
+        if (Math.hypot(s.x - t.x, s.y - t.y) < t.r + 4) {
+          runner.shots.splice(i, 1);
+          var hit = C.evalElementHit(hound, s.el);
+          if (t.ok && hit.mult >= 2) {
+            runner.streak++; runner.score += ui.toy ? 0 : 20; runner.idx++;
+            B.AudioFX.ok(); B.Scheduler.record(curP(), runner.curItem.id, true); curP().xp += ui.toy ? 0 : 10; saveProfiles();
+            document.getElementById("playLog").textContent = "Vera: \"How refreshing. " + runner.curItem.failRule + " (" + s.el + ": " + hit.text + ")\"";
+            spawnShooterWave();
+          } else {
+            runner.streak = 0; B.AudioFX.bad(); B.Scheduler.record(curP(), runner.curItem.id, false); saveProfiles();
+            t.y = Math.max(22, t.y - 18);
+            document.getElementById("playLog").textContent = (t.ok && hit.mult < 1)
+              ? "TEST PATTERN! Hounds resist " + s.el + ". Switch to Light, Holy, or Eldritch."
+              : "Elias: \"Sorry, wrong rail. " + runner.curItem.failRule + "\"";
+          }
+          break;
+        }
+      }
+    }
+    for (i = 0; i < runner.targets.length; i++) {
+      var tg = runner.targets[i]; tg.y += tg.vy * ui.speed;
+      ctx.strokeStyle = "#28e4fc"; ctx.lineWidth = 2; ctx.strokeRect(tg.x - tg.r, tg.y - 14, tg.r * 2, 28);
+      ctx.fillStyle = "#fcd838"; ctx.font = "bold 13px monospace"; ctx.textAlign = "center"; ctx.fillText(tg.text, tg.x, tg.y + 4);
+      if (tg.y > 218) { if (ui.toy) tg.y = 22; else { runner.streak = 0; spawnShooterWave(); break; } }
+    }
+    ctx.fillStyle = "#48fca8";
+    ctx.beginPath(); ctx.moveTo(runner.shipX, 214); ctx.lineTo(runner.shipX - 12, 234); ctx.lineTo(runner.shipX + 12, 234); ctx.closePath(); ctx.fill();
+    document.getElementById("playHud").textContent = (ui.toy ? "TOY MODE | " : "Score " + runner.score + " | Streak " + runner.streak + " | ") + "Adaptive " + B.Scheduler.adaptiveSpeed(curP()).toFixed(2) + "x";
+  }
+
+  function updateXray() {
+    if (!ui.xray) return;
+    var lines = [
+      "FRAME=" + runner.frame + "  PAUSED=" + ui.paused + "  SPEED=" + ui.speed.toFixed(1) + "x  ADAPTIVE=" + B.Scheduler.adaptiveSpeed(curP()).toFixed(2) + "x",
+      "CARTRIDGE=" + (ui.curCart ? ui.curCart.id + " (" + ui.curCart.engine + ")" : "none") + "  STREAK=" + runner.streak
+    ];
+    if (ui.curCart && ui.curCart.engine === "shooter") {
+      lines.push("SHIP_X=" + Math.round(runner.shipX) + "  PULSE=" + runner.pulse + "  SHOTS=" + runner.shots.length);
+      if (runner.targets[0]) lines.push("TARGET[0]: y=" + runner.targets[0].y.toFixed(1) + " vy=" + runner.targets[0].vy.toFixed(2) + " hit_rule: hypot(sx-tx,sy-ty) < r+4");
+    } else if (ui.curCart && ui.curCart.engine === "alchemy") {
+      lines.push("GRID=80x44 Uint8Array (3,520 bytes) -> 1 putImageData() Uint32Array blit | STEAM=" + C.SandEngine.steam + " PLANTS=" + C.SandEngine.plants);
+    } else if (ui.curCart && ui.curCart.engine === "maze") {
+      lines.push("PLAYER=(" + runner.px + "," + runner.py + ") CLOCK=" + C.fmtClock12(runner.clockMin) + " GATE_LOCKED=" + runner.gateLocked);
+    }
+    document.getElementById("xrVars").textContent = lines.join("\n");
+  }
+
+  function renderParent() {
+    var p = curP(), due = B.Scheduler.dueIds(p);
+    document.getElementById("parentOut").textContent = [
+      "=== EVELYN LOCAL PARENT & TEACHER READ-OUT ===",
+      "Profile       : " + p.name + " | Mode: " + p.mode + " | XP: " + p.xp,
+      "Adaptive Pace : " + B.Scheduler.adaptiveSpeed(p).toFixed(2) + "x (rolling last 8 attempts)",
+      "SM-2 Due Items: " + (due.length ? due.join(", ") : "All caught up!"),
+      "IndexedDB     : " + (B.EvelynDB.db ? "Active" : "Fallback mode") + " | Shelves: " + B.ShelfLibrary.rows.length + " packed entries",
+      "Worker TNY2   : " + (B.EchoWorker.loaded ? "Loaded (" + B.EchoWorker.meta.L + "L x " + B.EchoWorker.meta.D + "W)" : "Library-only mode")
+    ].join("\n");
+  }
+
+  /* Navigation & Event Wiring */
+  function showView(v) {
+    ui.view = v;
+    ["echo","play","workshop","parent","lab"].forEach(function (k) {
+      document.getElementById("sec-" + k).classList.toggle("hidden", k !== v);
+      document.getElementById("view" + k.charAt(0).toUpperCase() + k.slice(1)).classList.toggle("active", k === v);
+    });
+    document.getElementById("stR").textContent = "VIEW: " + v.toUpperCase();
+    if (v === "play" && ui.curCart) loadCartridge(ui.curCart);
+    if (v === "parent") renderParent();
+    if (v === "lab" && window.EvelynLab) window.EvelynLab.onShow();
+  }
+  document.getElementById("viewEcho").onclick = function () { showView("echo"); };
+  document.getElementById("viewPlay").onclick = function () { showView("play"); };
+  document.getElementById("viewWorkshop").onclick = function () { showView("workshop"); };
+  document.getElementById("viewParent").onclick = function () { showView("parent"); };
+  document.getElementById("viewLab").onclick = function () { showView("lab"); };
+  document.getElementById("cartSelect").onchange = function (e) {
+    ui.curCart = allCarts[Number(e.target.value)];
+    document.getElementById("wkJson").value = JSON.stringify(ui.curCart, null, 2);
+    if (ui.view === "play") loadCartridge(ui.curCart);
+  };
+  document.getElementById("playStart").onclick = function () { loadCartridge(ui.curCart); };
+  document.getElementById("btnToy").onclick = function () { ui.toy = !ui.toy; this.textContent = "Toy Mode: " + (ui.toy ? "ON" : "OFF"); this.classList.toggle("on-pink", ui.toy); };
+  document.getElementById("btnXray").onclick = function () { ui.xray = !ui.xray; this.textContent = "X-Ray: " + (ui.xray ? "ON" : "OFF"); this.classList.toggle("on-xray", ui.xray); document.getElementById("xrayBox").classList.toggle("hidden", !ui.xray); updateXray(); };
+  document.getElementById("xrPause").onclick = function () { ui.paused = !ui.paused; this.textContent = ui.paused ? "Resume Loop" : "Pause Loop"; updateXray(); };
+  document.getElementById("xrStep").onclick = function () { ui.paused = true; document.getElementById("xrPause").textContent = "Resume Loop"; ui.stepOnce = true; };
+  document.getElementById("xrSpeed").oninput = function (e) { ui.speed = parseFloat(e.target.value); document.getElementById("xrSpeedVal").textContent = ui.speed.toFixed(1) + "x"; };
+
+  document.getElementById("profSel").onchange = function (e) { profiles.curId = e.target.value; saveProfiles(); B.EchoWorker.pinPrefix("MODE:" + curP().mode + "|"); if (window.__neonRemount) window.__neonRemount(); };
+  document.getElementById("modeSel").onchange = function (e) { curP().mode = e.target.value; saveProfiles(); B.EchoWorker.pinPrefix("MODE:" + curP().mode + "|"); };
+  document.getElementById("chatGo").onclick = function () { var i = document.getElementById("chatIn"); askEcho(i.value); i.value = ""; };
+  document.getElementById("chatIn").onkeydown = function (e) { if (e.key === "Enter") { askEcho(this.value); this.value = ""; } };
+
+  document.getElementById("binFile").onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      B.EchoWorker.loadBin(f.name, r.result, function (err, info) {
+        if (err) { B.AudioFX.bad(); alert(err.message); return; }
+        B.AudioFX.ok();
+        B.EchoWorker.pinPrefix("MODE:" + curP().mode + "|");
+        document.getElementById("hdrMode").textContent = "WORKER TNY2 " + info.L + "Lx" + info.D + "W";
+        pushChat("<span style='color:var(--mint)'>Loaded " + f.name + " into IndexedDB + Web Worker with INT8xINT8 matvec and pinned KV21 prefix!</span>");
+        renderParent();
+      });
+    };
+    r.readAsArrayBuffer(f);
+  };
+  document.getElementById("txtFile").onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var n = B.ShelfLibrary.ingestPlainText(r.result, f.name.replace(/\.txt$/i, ""));
+      B.AudioFX.ok();
+      pushChat("<span style='color:var(--mint)'>Indexed " + n + " gap-encoded entries from " + f.name + " into IndexedDB!</span>");
+      renderParent();
+    };
+    r.readAsText(f);
+  };
+
+  /* Workshop & Validator */
+  document.getElementById("wkValidate").onclick = function () {
+    try {
+      var cart = JSON.parse(document.getElementById("wkJson").value);
+      var rep = C.CartridgeValidator.validate(cart);
+      document.getElementById("wkReport").textContent = (rep.ok ? "VALID CARTRIDGE! Ready to play or export." : "ERRORS FOUND:\n- " + rep.errors.join("\n- ")) + (rep.warnings.length ? "\nWarnings:\n- " + rep.warnings.join("\n- ") : "");
+      if (rep.ok) B.AudioFX.ok(); else B.AudioFX.bad();
+    } catch (err) { B.AudioFX.bad(); document.getElementById("wkReport").textContent = "JSON parse error: " + err.message; }
+  };
+  document.getElementById("wkLoadPlay").onclick = function () {
+    try {
+      var cart = JSON.parse(document.getElementById("wkJson").value);
+      var rep = C.CartridgeValidator.validate(cart);
+      if (!rep.ok) { document.getElementById("wkReport").textContent = "Fix errors first:\n- " + rep.errors.join("\n- "); B.AudioFX.bad(); return; }
+      B.EvelynDB.put("cartridges", cart.id, cart);
+      var replaced = false;
+      for (var i = 0; i < allCarts.length; i++) if (allCarts[i].id === cart.id) { allCarts[i] = cart; replaced = true; }
+      if (!replaced) allCarts.push(cart);
+      refreshCartDropdown();
+      ui.curCart = cart;
+      showView("play");
+    } catch (err) { document.getElementById("wkReport").textContent = "JSON parse error: " + err.message; }
+  };
+  document.getElementById("wkExportPack").onclick = function () {
+    var packed = B.PackCodec.exportPack([ui.curCart], [], { exportedAt: new Date().toISOString() });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([packed], { type: "text/plain" }));
+    a.download = (ui.curCart ? ui.curCart.id : "evelyn") + ".evelynpack";
+    a.click();
+    document.getElementById("wkReport").textContent = "Exported " + packed.length + " bytes LZW .evelynpack (ready for USB or 56k transfer).";
+  };
+  document.getElementById("wkImportPack").onchange = function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var data = B.PackCodec.importPack(r.result);
+        var added = 0;
+        (data.cartridges || []).forEach(function (c) {
+          if (C.CartridgeValidator.validate(c).ok) { B.EvelynDB.put("cartridges", c.id, c); allCarts.push(c); added++; }
+        });
+        refreshCartDropdown();
+        B.AudioFX.ok();
+        document.getElementById("wkReport").textContent = "Imported " + added + " validated cartridge(s) from " + f.name + "!";
+      } catch (err) { B.AudioFX.bad(); document.getElementById("wkReport").textContent = "Import error: " + err.message; }
+    };
+    r.readAsText(f);
+  };
+
+  /* Canvas input + hotkeys */
+  var playCv = document.getElementById("playCanvas");
+  playCv.addEventListener("pointerdown", function (e) {
+    if (!ui.curCart || ui.curCart.engine !== "shooter") return;
+    var r = playCv.getBoundingClientRect();
+    runner.shipX = Math.max(24, Math.min(516, (e.clientX - r.left) * (playCv.width / r.width)));
+    runner.shots.push({ x: runner.shipX, y: 214, el: runner.pulse });
+    B.AudioFX.shoot();
+  });
+  var sandCv = document.getElementById("sandCanvas");
+  function sandPaintEv(e) {
+    var r = sandCv.getBoundingClientRect();
+    C.SandEngine.paint(Math.floor((e.clientX - r.left) * (C.SandEngine.W / r.width)), Math.floor((e.clientY - r.top) * (C.SandEngine.H / r.height)));
+  }
+  sandCv.addEventListener("pointerdown", function (e) { C.SandEngine.painting = true; sandPaintEv(e); });
+  sandCv.addEventListener("pointermove", function (e) { if (C.SandEngine.painting) sandPaintEv(e); });
+  window.addEventListener("pointerup", function () { C.SandEngine.painting = false; });
+
+  window.addEventListener("keydown", function (e) {
+    runner.keys[e.key] = true;
+    if (e.key === " " && ui.view === "play" && ui.curCart && ui.curCart.engine === "shooter") {
+      e.preventDefault(); runner.shots.push({ x: runner.shipX, y: 214, el: runner.pulse }); B.AudioFX.shoot();
+    }
+    if (e.key === "F2") { e.preventDefault(); B.AudioFX.soundOn = !B.AudioFX.soundOn; document.getElementById("stS").textContent = B.AudioFX.soundOn ? "ON" : "OFF"; }
+    if (e.key === "F3") { e.preventDefault(); B.AudioFX.voiceMode = B.AudioFX.voiceMode === "robot" ? "speech" : B.AudioFX.voiceMode === "speech" ? "off" : "robot"; document.getElementById("stV").textContent = B.AudioFX.voiceMode.toUpperCase(); }
+    if (e.key === "F4") { e.preventDefault(); ui.creat = (ui.creat + 1) % 10; document.getElementById("stC").textContent = ui.creat; }
+  });
+  window.addEventListener("keyup", function (e) { runner.keys[e.key] = false; });
+
+  /* =========================================================================
+     SUITE WIRING: art + doctor, the 15-door / 78-cartridge hub with adaptive evolution, the voice guard, the
+     reactive director, frontier memory, the charter gate and the Chum Loft (Echoes and DritchChums).
+     Everything is built per learner profile and rebuilt when the profile changes.
+     ========================================================================= */
+  var neon = { console: null, suiteHost: null, suiteCtrl: null, loftHost: null, loft: null, world: null, wired: false };
+
+  function mountSuite() {
+    var A = window.EvelynArt, D = window.EvelynDoctor, S = window.EvelynSuiteUI, E = window.EvelynEvolution, VG = window.EvelynVoiceGuard, DR = window.EvelynDirector, K = window.EvelynChums;
+    if (!neon.wired) {
+      neon.wired = true;
+      /* art: favicon, animated CRT portrait above the Neural Monitor */
+      A.installFavicon();
+      var portraitWrap = document.createElement("div");
+      portraitWrap.style.marginBottom = "8px";
+      var sec = document.querySelector(".box.sec");
+      sec.insertBefore(portraitWrap, sec.children[1]);
+      neon.console = A.mountConsole(portraitWrap, 168);
+      /* doctor: watchdogs and a repair pass over profiles and cartridges */
+      neon.console.setMood("fixing");
+      D.Watchdog.attach({ timeoutMs: 3500 });
+      D.heal({ profiles: profiles.map, cartridges: allCarts });
+      neon.console.setMood("idle");
+      /* voice guard on every reply and spoken string */
+      VG.installHooks();
+      /* host elements */
+      neon.suiteHost = document.createElement("div");
+      document.querySelector(".grid").children[0].appendChild(neon.suiteHost);
+      neon.loftHost = document.createElement("div");
+      document.querySelector(".grid").children[0].appendChild(neon.loftHost);
+      neon.world = DR.createWorldState();
+      /* sentinel: one background read-only scrub pass over the shelves, a slice every 30 seconds */
+      var shelfScrubber = new window.EvelynSentinel.IncrementalScrubber({ batchSize: 12 });
+      var scrubTimer = setInterval(function () {
+        var rep = shelfScrubber.scrubSlice(B.ShelfLibrary.rows);
+        if (rep.newlyQuarantined > 0 && window.EvelynDoctor) window.EvelynDoctor.heal({});
+        if (rep.donePass) clearInterval(scrubTimer);
+      }, 30000);
+      /* frontier: surprise memory, and a graph of every canon creature and home for two-step questions */
+      var FR = window.EvelynFrontier;
+      var titansMem = new FR.TitansContinuumMemory(32);
+      window.addEventListener("blur", function () { titansMem.sleepConsolidate(0.5); });
+      var hippoGraph = new FR.HippoGraphMemory();
+      var creatures = window.EvelynCartridges.CREATURES;
+      for (var ci = 0; ci < creatures.length; ci++) {
+        var cr = creatures[ci];
+        hippoGraph.addPassage("home_" + cr.id, cr.name + " lives in " + cr.home + ".", "atlas", [cr.name, cr.home]);
+        hippoGraph.addPassage("weak_" + cr.id, cr.name + " is weak to " + cr.weak.join(", ") + " and resists " + cr.resist.join(", ") + ".", "creatures", [cr.name].concat(cr.weak));
+        hippoGraph.addTriple(cr.name, "lives in", cr.home, "home_" + cr.id);
+        for (var wi = 0; wi < cr.weak.length; wi++) hippoGraph.addTriple(cr.name, "weak to", cr.weak[wi], "weak_" + cr.id);
+      }
+      neon.titans = titansMem; neon.hippo = hippoGraph;
+      /* retro game X-Ray: a game file the learner picks is taken apart on this device, never uploaded */
+      document.getElementById("retroFile").onchange = function (ev) {
+        var file = ev.target.files[0];
+        if (!file) return;
+        var rd = new FileReader();
+        rd.onload = function () {
+          var report = window.EvelynGameXRay.analyzeGameFile(rd.result, file.name);
+          if (!report.ok) { pushChat("<span style='color:var(--hot)'>[Game X-Ray] " + String(report.error).replace(/</g, "&lt;") + "</span>"); return; }
+          var les = window.EvelynGameXRay.createEvelynLesson(report, curP());
+          saveProfiles();
+          pushChat("<span style='color:var(--mint)'>[Game X-Ray] " + String(report.summary).replace(/</g, "&lt;") + " Disassembled " + report.disassembly.length + " instruction(s), decoded " + report.tilesDecoded + " 8x8 tile(s), and added '" + String(les.title).replace(/</g, "&lt;") + "' to all 78 cartridges.</span>");
+        };
+        rd.readAsArrayBuffer(file);
+      };
+      B.EvelynDB.get("profiles", "world_state", function (saved) { if (saved) neon.world = DR.createWorldState(saved); });
+      /* chat: focus detection feeds the evolving games, chum commands feed the loft, the charter gates every question */
+      var origAsk = askEcho;
+      askEcho = function (q) {
+        var text = String(q || "");
+        if (window.EvelynCharter) {
+          var gate = window.EvelynCharter.guardMessage(text);
+          if (!gate.allowed) { pushChat("<span style='color:var(--hot)'>[Evelyn] &raquo; " + String(gate.message || "I will not help with that. Let's find a safe way to do it.").replace(/</g, "&lt;") + "</span>"); return; }
+        }
+        var multi = neon.hippo ? neon.hippo.queryMultiHop(text, 2) : { passages: [] };
+        if (multi.passages.length >= 2) neon.titans.observe(text, multi.passages[0].text + " " + multi.passages[1].text);
+        var intent = E.parseFocusIntent(curP(), text);
+        if (intent.matched.length) saveProfiles();
+        var chumRes = neon.loft ? neon.loft.parseChat(text) : null;
+        if (chumRes && chumRes.ok) {
+          pushChat("<span style='color:var(--cyan);font-weight:bold'>[Chum Loft] &raquo; </span><span style='color:var(--mint)'>" + chumRes.line.replace(/</g, "&lt;") + "</span>");
+          return;
+        }
+        origAsk(text);
+      };
+    }
+    var prof = curP();
+    /* suite hub */
+    neon.suiteHost.innerHTML = "";
+    neon.suiteCtrl = S.createController({ profile: prof, onSave: function () { saveProfiles(); }, onMonitor: function (a, c, l, msg) { setMon(a, c, l, msg); } });
+    neon.suiteCtrl.mountDOM(neon.suiteHost);
+    /* reactive director: open doors through buildReactiveCartridge and record the outcome */
+    var origOpen = neon.suiteCtrl.openCartridge, origSubmit = neon.suiteCtrl.submitAnswer;
+    neon.suiteCtrl.openCartridge = function (cartId, seed) {
+      var base = window.EvelynSuite78.getById(cartId);
+      if (!base) return origOpen(cartId, seed);
+      neon.suiteCtrl.state.activeCart = base;
+      neon.suiteCtrl.state.evolvedCart = DR.buildReactiveCartridge(base, curP(), neon.world, seed || Date.now());
+      neon.suiteCtrl.state.idx = 0;
+      neon.suiteCtrl.state.streak = 0;
+      return neon.suiteCtrl.state.evolvedCart;
+    };
+    neon.suiteCtrl.submitAnswer = function (ans) {
+      var res = origSubmit(ans);
+      if (res.isSetPiece || !res.ok) {
+        var ev = DR.recordGameEvent(neon.world, curP(), neon.suiteCtrl.state.evolvedCart, { won: res.ok, streak: neon.suiteCtrl.state.streak });
+        B.EvelynDB.put("profiles", "world_state", neon.world);
+        res.msg = VG.clean(res.msg) + "\n" + ev.directorLine;
+      }
+      return res;
+    };
+    /* chum loft: tick by the real clock (two days of catch-up at most), then show it */
+    K.ensureState(prof);
+    var tick = K.tickByClock(prof, Date.now());
+    if (tick.released.length) setMon([0.6, 0.7, 0.6, 0.7], 0.9, null, tick.released[0].line);
+    neon.loftHost.innerHTML = "";
+    neon.loft = K.createLoft({ profile: prof, onSave: function () { saveProfiles(); }, onMonitor: function (a, c, l, msg) { setMon(a, c, l, msg); } });
+    neon.loft.mountDOM(neon.loftHost);
+  }
+  window.__neonRemount = mountSuite;
+
+  /* Boot sequence: Open IndexedDB -> Restore Profiles, Shelves, Custom Cartridges */
+  B.EvelynDB.open(function (hasIdb) {
+    document.getElementById("dbStat").textContent = (hasIdb ? "IndexedDB Active" : "Local Fallback") + " | Worker Ready";
+    B.EvelynDB.get("profiles", "all", function (saved) {
+      if (!saved) { try { var ab = new window.EvelynSentinel.ABStore(window.localStorage).load("evelyn_profiles"); if (ab && ab.ok) saved = ab.data; } catch (eRS) {} }
+      if (saved) profiles.map = saved; saveProfiles(); mountSuite();
+    });
+    B.ShelfLibrary.restore(function (restored) { if (!restored) { C.seedDefaultShelves(); B.ShelfLibrary.persist(); } renderParent(); });
+    B.EvelynDB.getAll("cartridges", function (savedCarts) {
+      for (var i = 0; i < savedCarts.length; i++) {
+        var found = false;
+        for (var j = 0; j < allCarts.length; j++) if (allCarts[j].id === savedCarts[i].id) { allCarts[j] = savedCarts[i]; found = true; }
+        if (!found) allCarts.push(savedCarts[i]);
+      }
+      refreshCartDropdown();
+    });
+  });
+
+  pushChat("<span style='color:var(--dim)'>Evelyn NEON online. IndexedDB, gap-encoded shelves, Web Worker TNY2, X-Ray stepper, and Cartridge Validator are active.</span>");
+  setMon([0.7, 0.8, 0.65, 0.85], 0.94, 0, "Pick a cartridge or open the Workshop. Zeep zorp, team.");
+
+  function mainLoop() {
+    if (ui.view === "play" && ui.curCart) {
+      var shouldStep = !ui.paused || ui.stepOnce;
+      if (shouldStep) {
+        if (ui.curCart.engine === "shooter") stepShooterFrame();
+        else if (ui.curCart.engine === "alchemy") {
+          C.SandEngine.stepAndDraw(sandCv, ui.rng, function (ev) {
+            B.AudioFX.ok(); curP().xp += ui.toy ? 0 : 15; saveProfiles();
+            document.getElementById("playLog").textContent = ev === "steam" ? "Dritchlyssa: \"I note that water boiled to steam.\"" : "Water + Seed grew Neon Plants!";
+          });
+        }
+        ui.stepOnce = false;
+      }
+      updateXray();
+    }
+    requestAnimationFrame(mainLoop);
+  }
+  mainLoop();
+})();
+</script>
+</body>
+</html>

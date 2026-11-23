@@ -1,0 +1,67 @@
+# --- build output and test scratch (made by the tests, rebuilt on every run) ---
+tests/tmp/
+c/out/
+js/evelyn_data/
+basic/*.exe
+basic/evelyn
+basic/evelyn_proto
+*.exe
+*.obj
+*.o
+*.out
+
+# --- a learner's own data and model weights (never published) ---
+USER.CFG
+LIBRARY.EVL
+TINY.BIN
+FULL.BIN
+TEST.BIN
+*.evelynpack
+evelyn_profile_v1.json
+evelyn_library_v1.json
+
+# --- the companion bridge's workspace (files a learner wrote while it ran) ---
+neon/workspace/
+workspace/
+
+# --- downloaded reference libraries and books (other people's copyright or licences) ---
+library/
+EvelynLibrary/
+shelves/
+*.zim
+*.pdf
+*.epub
+
+# --- game files and discs learners point the X-Ray at (never ship these) ---
+*.nes
+*.gb
+*.gbc
+*.gba
+*.smc
+*.sfc
+*.n64
+*.z64
+*.v64
+*.iso
+*.cue
+*.chd
+*.wad
+*.ips
+
+# --- private planning and source notes (not part of the program) ---
+SOURCES.md
+cartridges/
+
+# --- backups, scratch, editor and tool folders ---
+*.bak
+*.bak_*
+*_backup*/
+.claude/
+.vscode/
+.idea/
+node_modules/
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,254 @@
+# Evelyn conformance script. One command per line; every edition (JS, C, BASIC) must print the same lines.
+# "@section name" starts a group. An edition runs only the sections it supports.
+# Files used: TEST.BIN and FULL.BIN (made by the runner), ref_* (files written by the JS edition).
+
+@section core
+# ---------- numbers and text ----------
+FMT 0
+FMT -0.0000001
+FMT 42
+FMT 3.14159265
+FMT 1234.5678901
+FMT -2.5
+FMT 0.1
+FMT 100000
+FMT 0.0078125
+FMT 2.000001
+VAL  -12.5xyz
+VAL abc
+VAL .5
+VAL 1e3
+CLEAN   hello    world
+CLEAN it\xE2\x80\x99s \xE2\x80\x9Cok\xE2\x80\x9D \xE2\x80\x93 fine
+CLEAN caf\xC3\xA9 au lait
+CLEAN a\xC3\xA9b
+CLEAN tab\there\nnext line
+CLEAN \n\n  lead and trail  \n
+WORDS What is the Gravity of Mars?
+WORDS how do I purify water, please
+WORDS
+# ---------- compression and base64 ----------
+LZ.ENC hello hello hello
+LZ.ENC aaaaaaaaaaaaaaaaaaaa
+LZ.ENC TOBEORNOTTOBEORTOBEORNOT
+LZ.ENC Line one\nLine two\ttab and a back\\slash
+LZ.ENC x
+LZ.ENC
+LZ.ENC The camel stores fat in its hump and can go a long time without water in the desert. The camel stores fat in its hump and can go a long time without water in the desert. Whales are mammals, not fish, and breathe air through lungs. Whales are mammals, not fish, and breathe air through lungs.
+LZ.DEC 680065006c006c006f00
+LZ.DEC 610062000001
+LZ.DEC 6100010100
+LZ.DEC 6100050a
+LZ.DEC c800
+B64.ENC 4d616e
+B64.ENC 4d61
+B64.ENC 4d
+B64.ENC 00ff10
+B64.DEC TWFuTQ==
+B64.DEC
+# ---------- library ----------
+LIB.CLEAR
+LIB.STARTER
+LIB.STATS
+LIB.SEARCH 2|how do I purify water
+LIB.SEARCH 3|gravity
+LIB.SEARCH 1|what is the capital of estonia
+LIB.SEARCH 2|zzzz nothing
+LIB.SEARCH 5|coding loops and variables
+LIB.SEARCH 1|loops
+LIB.SEARCH 2|the of a
+LIB.ADD stripes|animals|a pattern of lines|e.g. a zebra
+LIB.ADD Rain|weather|Rain falls from clouds. It forms when vapour cools.|Watch a window after a storm.
+LIB.ADD caf\xC3\xA9 menu||He said \xE2\x80\x9Chi\xE2\x80\x9D to everyone.|
+LIB.SEARCH 2|rain clouds
+LIB.SEARCH 2|zebra stripes
+LIB.SEARCH 1|menu
+LIB.INGEST book|The camel stores fat in its hump and can go a long time without water in the desert.\n\nshort\n\nA second paragraph about the camel and its feet that spread wide on the sand.   Extra   spaces   inside.\n  \n  \nA third paragraph that is long enough to need two chunks because it keeps going and going with many words about dunes and oases and the stars that guide travellers across the night sky above the quiet sand, which is cold after dark.
+LIB.STATS
+LIB.SEARCH 3|camel feet
+LIB.SEARCH 2|oases stars
+LIB.SAVE lib_out.evl
+FILE.CAT lib_out.evl
+LIB.CLEAR
+LIB.STATS
+LIB.LOAD lib_out.evl
+LIB.SEARCH 1|rain
+LIB.CLEAR
+LIB.LOAD ref_lib.evl
+LIB.STATS
+LIB.SEARCH 1|oases
+LIB.LOAD missing.evl
+# ---------- neural engine ----------
+NN.LOAD TEST.BIN
+NN.SCORE what is gravity
+NN.SCORE
+NN.SCORE hello
+NN.SCORE The quick brown fox jumps over the lazy dog
+NN.THINK 0|what is gravity
+NN.THINK 0|2+2
+NN.THINK 0|
+NN.RESET
+NN.PRIME SECRET:PIN=4921;
+NN.THINK 0|Q:PIN?A:
+NN.RESET
+NN.THINK 0|Q:PIN?A:
+NN.LOAD missing.bin
+# ---------- learner profile ----------
+PM.RESET
+PM.CFG
+PM.MODE a
+PM.MODE zzz
+PM.MODE
+PM.MODE R
+PM.SUCCESS fractions
+PM.SUCCESS gravity|25
+PM.SUCCESS fractions|5
+PM.BEST
+PM.MODE D
+PM.SUCCESS water purification|0
+PM.CFG
+PM.SAVE user_out.cfg
+FILE.CAT user_out.cfg
+PM.RESET
+PM.LOAD user_out.cfg
+PM.CFG
+PM.RESET
+PM.LOAD ref_user.cfg
+PM.CFG
+PM.LOAD missing.cfg
+PM.BEST
+# ---------- coding sandbox ----------
+CODE PRINT "HELLO OASIS"
+CODE LET a = 6\nLET b = 7\nPRINT a * b
+CODE CLEAR\nREPEAT 4\n  MOVE 3\n  TURN RIGHT\nEND
+CODE LET water = 3\nIF water < 5 THEN PRINT "FIND WELL"
+CODE LET Total = 0\nREPEAT 5\nLET total = TOTAL + 2\nEND\nPRINT TOTAL\nPRINT total / 3\nPRINT 7 % 4\nPRINT 5 / 0
+CODE LET n = "Leo"\nPRINT "Hi " + n\nIF n == "Leo" THEN PRINT "yes"\nIF n = "Bo" THEN PRINT "no"\nPRINT n + 5\nPRINT 5 + n\nPRINT "3" * 2\nPRINT "abc" < "abd"
+CODE REPEAT 2\nREPEAT 3\nPRINT "x"\nEND\nEND
+CODE REPEAT 0\nPRINT "never"\nEND\nPRINT "after"
+CODE LET s = "a" + "b"\nPRINT s\nPRINT (1 + 2) * (3 - 1)\nPRINT 10 - 2 - 3\nPRINT 2 * 3 % 4\nPRINT -7 % 4\nPRINT 1.5 * 3
+CODE # comment\n\nPRINT -2.5 * 2\nLET q = 1 / 3\nPRINT q
+CODE MOVE 50\nTURN LEFT\nMOVE 20\nTURN RIGHT\nTURN LEFT\nMOVE -3
+CODE MOVE 2\nTURN DOWN\nMOVE 2\nIF 1 = 1 THEN TURN LEFT\nMOVE 1
+CODE TURN
+CODE END
+CODE REPEAT 2\nPRINT 1
+CODE DANCE
+CODE PRINT 1\nIF 1 PRINT 2
+CODE LET x 5
+CODE LET 5x = 1
+CODE REPEAT 1000\nPRINT 1\nEND
+CODE PRINT
+CODE LET z = 4\nPRINT z\nDANCE now
+EXPR 2 + 3 * 4
+EXPR "ab" + "cd"
+EXPR 1 <= 2
+EXPR -(3 + 4)
+EXPR 10 != 10
+EXPR missing + 1
+EXPR (1 + 2
+# ---------- adventure ----------
+LIB.CLEAR
+LIB.STARTER
+PM.RESET
+ADV.RESET
+ADV
+ADV go south
+ADV not sure
+ADV HINT
+ADV ANSWER boil it and strain through cloth
+ADV boil
+ADV LOOK
+ADV GO east
+ADV HINT
+ADV it is 5
+ADV go south
+ADV 0.75
+ADV go north
+ADV go west
+ADV go north
+ADV five
+PM.CFG
+# ---------- tutor ----------
+PM.RESET
+ASK what is 18*4
+ASK 7 / 2 ?
+ASK 15 % 4
+ASK tell me about gravity
+PM.MODE R
+ASK tell me about gravity
+PM.MODE A
+ASK tell me about gravity
+PM.MODE D
+ASK tell me about gravity
+ASK zzzz qqqq
+ASK What is the capital of Estonia?
+PM.CFG
+NN.LOAD TEST.BIN
+PM.MODE M
+ASK tell me about mars
+ASK zzzz qqqq
+# ---------- audio ----------
+CHIRP A B
+CHIRP this text is longer than fourteen
+CHIRP
+
+@section kv
+# KV21 files: the same bytes in every edition, and a cache from another edition continues the same way
+NN.LOAD TEST.BIN
+NN.RESET
+NN.PRIME SECRET:PIN=4921;
+NN.KVSAVE kv_out.bin|16
+NN.KVSAVE kv_short.bin|5
+NN.RESET
+NN.KVLOAD kv_out.bin
+NN.THINK 0|Q:PIN?A:
+NN.KVLOAD ref_kv.bin
+NN.THINK 0|Q:PIN?A:
+NN.KVLOAD missing.bin
+NN.KVLOAD TEST.BIN
+
+@section sampling
+NN.LOAD TEST.BIN
+NN.RESET
+NN.SEED 7
+NN.THINK 3|tell me a story
+NN.SEED 7
+NN.THINK 3|tell me a story
+NN.SEED 8
+NN.THINK 3|tell me a story
+NN.SEED 0
+NN.THINK 0.5|hi
+NN.THINK 5|hi
+
+@section swarm
+MS.RESET
+MS.ADD stem|triangle|A right triangle with sides 3 and 4 has a diagonal of 5.|Use a rope.
+MS.ADD civics|triangle vote|A vote of 2 out of 3 members passes a motion.|
+MS.ASK stem|triangle
+MS.ASK *|triangle
+MS.ASK civics|triangle
+MS.ASK *|zzzz
+MS.ASK nope|triangle
+NN.LOAD TEST.BIN
+NN.RESET
+MS.ASK stem|triangle
+
+@section net
+NET.FRAME 7,12.5,-3.25,1.5,-0.5,5,513
+NET.FRAME 300,9999,-9999,999,-999,300,70000
+NET.FRAME 1,0.03,0.04,0.001,-0.001,0,0
+NET.FRAME 255,-0.03,-2.5,-0.00195,0.002,255,65535
+NET.BRAIN 0.5,-0.25,1,0,-1,0.123
+NET.BRAIN 0,0
+NET.BRAIN 0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3
+QDOT 0.5,-0.25,0.75,1|10,20,-30,40|0.01
+QDOT 0,0|5,5|1
+QDOT 127,-127|2,3|1
+QDOT 0.001,-0.002,0.0005|100,-100,50|0.5
+
+@section full
+# the shape of the real TINY.BIN: D=96 L=4 H=4 HID=256
+NN.LOAD FULL.BIN
+NN.SCORE what is water
+NN.THINK 0|what is water
