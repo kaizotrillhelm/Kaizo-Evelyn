@@ -163,6 +163,58 @@ agent.ask("Where is Frostgate?", function (err, r) { /* r.answer, r.path, r.veri
 
 How to read it. The three failures of Inkling alone were two island runs that used all 6,000 tokens thinking at high effort (one never wrote code, one stopped inside the code block) and one solar system with five spheres where four were asked for. The loop's one repaired run was an island whose first draft failed a check. The notes were written by the same hand as the checks, so that row shows what retrieval can do when the right note exists. It is not an unbiased accuracy, and `alone` also differs in effort, not only in help. Six runs a row is a small sample and the 6,000-token limit decides some of the baseline's failures. Inkling here is the same model served by LM Studio's llama.cpp runtime for every row; the LM Studio application window was not used, because loading a model through it skips the GPU queue.
 
+### The scenes they made, side by side
+
+Each picture below puts the code of Inkling alone (left) next to the code of Inkling with Evelyn, the loop with notes (right), for the same task and the same seed. All 6 runs of the table above are shown, 3 tasks with 2 runs each. The code of all 16 scenes that were written is in [`examples/threejs/`](examples/threejs/), unchanged, with a short comment on top that says which condition made it and what the checks said. `examples/threejs/bench_results.json` has the numbers of every run without the code.
+
+**Spinning cube, run 1.** Task: one lit cube (BoxGeometry) that spins, a light and a camera that sees it.
+
+![Spinning cube, run 1: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/cube_run1.gif)
+
+Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+
+
+**Spinning cube, run 2.** Task: one lit cube (BoxGeometry) that spins, a light and a camera that sees it.
+
+![Spinning cube, run 2: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/cube_run2.gif)
+
+Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+
+
+**Solar system, run 1.** Task: a glowing sun at the origin and exactly three planets on circular orbits of different radii, a light, no moons.
+
+![Solar system, run 1: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/solar_run1.gif)
+
+Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+
+
+**Solar system, run 2.** Task: a glowing sun at the origin and exactly three planets on circular orbits of different radii, a light, no moons.
+
+![Solar system, run 2: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/solar_run2.gif)
+
+Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+
+
+**Low-poly island with instanced trees, run 1.** Task: a horizontal ground of at least 20 by 20 that receives shadows, at least 30 trees as one InstancedMesh that cast shadows, a DirectionalLight with shadows, and a camera that looks from above and to the side.
+
+![Low-poly island with instanced trees, run 1: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/island_run1.gif)
+
+Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+
+
+**Low-poly island with instanced trees, run 2.** Task: a horizontal ground of at least 20 by 20 that receives shadows, at least 30 trees as one InstancedMesh that cast shadows, a DirectionalLight with shadows, and a camera that looks from above and to the side.
+
+![Low-poly island with instanced trees, run 2: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/island_run2.gif)
+
+Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+
+
+How the pictures were made (`tools/threejs_showcase.py`). Each scene is drawn in a headless Brave with software rendering, so no graphics card was used. The canvas is 384 by 216 and the camera's aspect is set to match. `Math.random` is replaced by a seeded generator so the picture can be drawn again. The island scene does not move, so for it only, the camera circles the origin once; every other scene is drawn exactly as its `update(t)` moves it, 10 pictures a second for 6 seconds. The page blocks every network request from the model's code. Pass and fail come from the checker, `js/test/three_verify_worker.js`. I did not watch the GIFs, so nothing here says how good a scene looks, only whether its code passed the checks. The code files are model output and were not edited; Inkling 2 Mini's terms for reusing its output were not looked up.
+
+```powershell
+python tools/threejs_showcase.py --three-dir <folder with three.module.js and three.core.js>
+```
+
 **Not measured.** The chat's other claims: that 40 to 70 percent of queries can stop at the small tiers, and that a larger context and a 4,096-entry vocabulary help the assistant. The small model is the `TNY2` engine with random test weights (no trained `TINY.BIN` exists), so what a trained router or expander would decide is open. The loop cut was changed from the design: it needs the same 48 letters to have appeared twice before, because a code listing or a JSON list can repeat a line once; `loopRepeats: 1` gives the original rule.
 
 ## Reaching back: how old a machine can run it
