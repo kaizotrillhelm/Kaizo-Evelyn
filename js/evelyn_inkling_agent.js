@@ -67,6 +67,8 @@
   InklingClient.prototype.chat = function (messages, effort, cb) {
     var self = this, finished = false;
     this.lastUsage = null;
+    this.lastFinish = null;
+    this.lastThinkingChars = 0;
     function done(err, text) { if (finished) return; finished = true; cb(err, text); }
     var body = {
       model: this.model,
@@ -96,6 +98,8 @@
       if (!msg) { done(new Error("Inkling server sent no choices")); return; }
       self.lastRaw = msg;
       self.lastUsage = json.usage || null;
+      self.lastFinish = json.choices[0].finish_reason || null;
+      self.lastThinkingChars = typeof msg.reasoning_content === "string" ? msg.reasoning_content.length : 0;
       var content = typeof msg.content === "string" ? msg.content : "";
       if (!content.replace(/\s+/g, "")) {
         done(new Error("Inkling sent no answer text (finish: " + (json.choices[0].finish_reason || "?") +

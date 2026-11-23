@@ -67,6 +67,8 @@ step("trained-model file: torch and the engine agree (skips without torch)", fun
 });
 step("JavaScript registry, skills and visual-check tests", function () { return node("js/test/evelyn_skills_tests.js"); });
 step("JavaScript model loader, agent and command-line tests (mock server)", function () { return node("js/test/evelyn_llm_tests.js"); });
+step("skills bench runner: what it logs (mock server)", function () { return node("js/test/evelyn_skills_bench_tests.js"); });
+step("skills bench results.json of 2026-11-23 is consistent", function () { return node("tests/check_bench_results.js", ["results/skills_bench_2026-11-23/results.json"]); });
 step("JavaScript speed-work parity tests", function () { return node("js/test/evelyn_fast_tests.js"); });
 step("benchmark suite runs and agrees with the old code (quick)", function () {
   var r = run(NODE, [path.join(ROOT, "tests", "bench_evelyn.js"), "--quick", "--only=1,2,4,5"]);

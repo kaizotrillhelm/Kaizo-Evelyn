@@ -4,6 +4,8 @@ Inkling 2 Mini (Q4_K_M) on LM Studio's llama.cpp runtime (server build b1-29b52d
 
 **The LM Studio application was not tested.** Everything here ran against the llama.cpp server. The same runner takes `--port 1234 --model thinkingmachines/inkling-2-mini` for LM Studio's own server; that run has not been made.
 
+**About `results.json`.** It is schema 1: the verdicts, calls, tokens, seconds, efforts, notes found, active skills, visual flags, and the round-by-round errors of the photorealistic runs. It has no record of the server start line (card, cache type), the model file (the field `model` is the name sent, `inkling`), prompts, replies or thinking text; those are logged by the current runner (schema 2) and are described in the main README ("What the skills bench logs"). `node tests/check_bench_results.js results/skills_bench_2026-11-23/results.json` checks the file against the runner: 2,306 checks, 0 errors, 1 warning (the grounded questions have 9 of 18 planned runs).
+
 ## The five setups
 
 | Setup | What it is |

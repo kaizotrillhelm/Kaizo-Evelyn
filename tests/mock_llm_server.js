@@ -21,7 +21,7 @@ var srv = http.createServer(function (req, res) {
       else if (/Brindlewick|bells/i.test(last)) text = "The harbour tower of Brindlewick has 17 bells [library#0].";
       else text = "ok";
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ choices: [{ message: { content: text }, finish_reason: "stop" }], usage: { completion_tokens: text.length >> 2 }, _seen: { model: body.model, effort: body.reasoning_effort || (body.chat_template_kwargs || {}).reasoning_effort || null, system: msgs[0].content.slice(0, 200) } }));
+      res.end(JSON.stringify({ choices: [{ message: { content: text, reasoning_content: "mock reasoning for the test" }, finish_reason: "stop" }], usage: { prompt_tokens: JSON.stringify(msgs).length >> 2, completion_tokens: text.length >> 2 }, _seen: { model: body.model, effort: body.reasoning_effort || (body.chat_template_kwargs || {}).reasoning_effort || null, system: msgs[0].content.slice(0, 200) } }));
     });
     return;
   }

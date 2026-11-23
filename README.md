@@ -367,6 +367,32 @@ Things to know about the page: a page opened as a file can reach the server only
 
 Checks: `node js\test\evelyn_llm_tests.js` (12 tests against `tests\mock_llm_server.js`, which stands in for a model server) and `python tests\check_gui_llm_browser.py` (opens `js/index.html` as a file in Brave and drives all four tabs; 18 checks). Both are steps of `node tests\run_all.js`.
 
+## What the skills bench logs, and how the log is checked
+
+`js/test/evelyn_skills_bench.js` writes `results.json` (and, beside it, the code of every scene and one transcript per run). The run of 2026-11-23 was made with the first version of the log (schema 1); the runner now writes schema 2, which adds the rows marked below. The file of 2026-11-23 was not changed and has no schema 2 fields.
+
+| Where | Field | Schema | What it holds |
+| --- | --- | --- | --- |
+| top | `schema`, `backend`, `model` (the name sent to the server), `port`, `serverCtx`, `trials` | 1 (`schema` itself: 2) | The run. |
+| top | `probe` | 1 | One trivial sum at effort 0.0 and 0.9: tokens and answer. |
+| top | `meta` | 2 | Start and end times, resume times, Node version, platform, git commit of the repository, three.js version, the server's `/props` (model path, build info, slots, context), the server start line when `--server-info <file>` is given (card, cache type, context), `nvidia-smi` memory use at the start and the end, and the runner's settings. |
+| run | `suite`, `kind`, `task`, `trial`, `cond`, `seed` | 1 | Which run. |
+| run | `ok`, `firstDraftOk`, `errors` | 1 | The structural checker's verdict and its messages. |
+| run | `calls`, `rounds`, `tokens`, `ms` | 1 | Model calls, repair rounds, completion tokens (thinking included), milliseconds of the run (the model calls and the checker's runs of the code). |
+| run | `hits`, `efforts`, `exhausted`, `activeSkills` | 1 | Notes found, the effort of each call, rounds that ran out of tokens, skills that activated. |
+| run | `visualErrors` | 1 | What the visual checks flagged on a passing scene. |
+| run | `history` | 1 for the photorealistic runs, 2 for all loop runs | The checker's errors of each round. |
+| run | `answer` | 1 | The model's answer to a grounded question. |
+| run | `startedAt`, `finishedAt`, `promptTokens`, `completionTokens`, `tokensPerSecond` | 2 | Time and size of the run. |
+| run | `calls_detail` | 2 | For each call: effort, prompt characters and tokens, completion tokens, milliseconds, finish reason (`stop`, `length`), size of the thinking text, size of the reply, any error. |
+| run | `retrieval` | 2 | What the search found for the task: shelf, id, topic and score of each note, the top score and the gap to the second. |
+| run | `codeSha256`, `codeChars` | 2 | Of the saved code file, so the file can be matched to its row. |
+| run | `transcript` | 2 | Path of `transcripts/<suite>/<task>/<setup>_run<k>.json`: the messages sent in every call, the reply, and the model's thinking text when the server returns it. |
+
+Not logged: the picture of a scene (the GIFs are made afterwards by `tools/threejs_gifs.py`), the time to the first token (the runner does not stream), tokens per second of the prompt, and anything about the card beyond the memory use at the start and the end.
+
+**Is a `results.json` consistent?** `node tests/check_bench_results.js <results.json or folder>` checks a file against what the runner promises: every run has its fields; a pass has no errors and a failure has one; calls, rounds and the effort list agree; a first-draft pass means one call; the setup decides which notes and skills a run may have; the seed is the same in every setup of a task; no row was made against a dead server; visual checks appear only on passing scenes; the speed is between 5 and 400 tokens a second; the schema 2 fields are present; the number of runs per suite matches the plan (a shortfall is a warning). It exits 1 on an error. On the file of 2026-11-23 it reports 2,306 checks, 0 errors and 1 warning (the grounded questions have 9 of 18 planned runs); on the file that still held the 24 rows made against the dead server it reports 38 errors. The runner's logging is tested against the mock server by `node js/test/evelyn_skills_bench_tests.js` (16 tests). Both are steps of `node tests/run_all.js`. This checks that the file agrees with itself and with the runner; it does not check that the model's answers are good.
+
 ## Tests
 
 ```powershell

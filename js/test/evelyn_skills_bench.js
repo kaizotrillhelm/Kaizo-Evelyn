@@ -21,6 +21,8 @@
   var path = require("path");
   var http = require("http");
   var cp = require("child_process");
+  var crypto = require("crypto");
+  var os = require("os");
   var S = require("../evelyn_stream.js");
   var A = require("../evelyn_inkling_agent.js");
   var CL = require("../evelyn_inkling_codeloop.js");
@@ -37,6 +39,9 @@
   var CONDS = String(arg("conds", "alone,loop,notes,skill,skillcal")).split(",");
   var OUT = path.resolve(arg("out", path.join(__dirname, "..", "..", "tests", "tmp", "skills_bench", BACKEND)));
   var WAIT_IDLE = arg("wait-idle", "0") === "1";
+  var ONLY = arg("only", null) ? String(arg("only", "")).split(",") : null;   /* task ids, for a short run */
+  var SERVER_INFO = arg("server-info", null);   /* a file whose last JSON line is the server start line (card, cache type, context) */
+  var META = null;
   fs.mkdirSync(path.join(OUT, "code"), { recursive: true });
 
   var VISUAL_WORKER = path.join(__dirname, "three_verify_worker.js");
@@ -88,6 +93,7 @@
           .concat(Object.keys(BT.QA).map(function (id) { return { suite: "basic", kind: "qa", task: id, text: BT.QA[id].text }; }))
       : Object.keys(TT.TASKS).filter(function (id) { return (suite === "photo") === (id === "photo"); })
           .map(function (id) { return { suite: suite, kind: "code", task: id, text: TT.TASKS[id].text }; });
+    if (ONLY) items = items.filter(function (it) { return ONLY.indexOf(it.task) >= 0; });
     items.forEach(function (it, ti) {
       for (var tr = 0; tr < TRIALS; tr++) CONDS.forEach(function (cond) {
         if (it.kind === "qa" && (cond === "loop" || cond === "skillcal")) return;
@@ -99,12 +105,38 @@
   var key = function (j) { return [j.suite, j.task, j.trial, j.cond].join("/"); };
 
   var resultsPath = path.join(OUT, "results.json"), results = [], probe = null, serverCtx = null;
-  if (fs.existsSync(resultsPath)) { try { var prev = JSON.parse(fs.readFileSync(resultsPath, "utf8")); results = prev.results || []; probe = prev.probe || null; } catch (e) { results = []; } }
+  if (fs.existsSync(resultsPath)) { try { var prev = JSON.parse(fs.readFileSync(resultsPath, "utf8")); results = prev.results || []; probe = prev.probe || null; META = prev.meta || null; } catch (e) { results = []; } }
   var done = {};
   results.forEach(function (r) { done[key(r)] = true; });
 
-  function client(seed) {
-    return new A.InklingClient({ host: HOST, port: PORT, model: MODEL, maxTokens: MAXTOK, temperature: 0.6, timeoutMs: 900000, extra: { seed: seed } });
+  /* log: an array; every call is recorded in it with its messages, its reply, its thinking text and its numbers */
+  function client(seed, log) {
+    var c = new A.InklingClient({ host: HOST, port: PORT, model: MODEL, maxTokens: MAXTOK, temperature: 0.6, timeoutMs: 900000, extra: { seed: seed } });
+    if (!log) return c;
+    var inner = c.chat;
+    c.chat = function (messages, effort, cb) {
+      var t0 = Date.now(), entry = { round: log.length, effort: effort, promptChars: JSON.stringify(messages).length };
+      c.lastRaw = null; c.lastFinish = null; c.lastThinkingChars = 0;
+      inner.call(c, messages, effort, function (err, text) {
+        entry.ms = Date.now() - t0;
+        entry.promptTokens = c.lastUsage ? c.lastUsage.prompt_tokens : null;
+        entry.completionTokens = c.lastUsage ? c.lastUsage.completion_tokens : null;
+        entry.finishReason = c.lastFinish || null;
+        entry.thinkingChars = c.lastThinkingChars || 0;
+        entry.replyChars = text ? text.length : 0;
+        entry.error = err ? String(err.message || err).slice(0, 200) : null;
+        log.push({ meta: entry, messages: messages, reply: text || null, reasoning: (c.lastRaw && c.lastRaw.reasoning_content) || null });
+        cb(err, text);
+      });
+    };
+    return c;
+  }
+
+  /* what the search found for a task: the topics and scores, and how sure it was */
+  function retrievalOf(st, text) {
+    if (!st || typeof st.searchScored !== "function") return null;
+    var sc = st.searchScored(text, 4);
+    return { topScore: sc.topScore, relGap: sc.relGap, hits: sc.hits.map(function (h) { return { shelf: h.shelf, id: h.id, topic: h.topic, score: h.score }; }) };
   }
 
   /* ---------- verifiers ---------- */
@@ -139,7 +171,7 @@
   }
 
   function runCode(job, cb) {
-    var c = client(job.seed), t0 = Date.now(), tokens = 0, marker = isThree(job.suite) ? "buildScene" : BT.TASKS[job.task].fn;
+    var c = client(job.seed, job.log), t0 = Date.now(), tokens = 0, marker = isThree(job.suite) ? "buildScene" : BT.TASKS[job.task].fn;
     var tools = { activeSkills: [], hits: 0 }, loopOpts = { client: c, marker: marker, maxRepairs: 2, verify: verifier(job, false), system: SYSTEM_PLAIN,
       onCall: function (info) { if (info.usage) tokens += info.usage.completion_tokens || 0; } };
 
@@ -165,6 +197,7 @@
         if (isThree(job.suite)) loopOpts.verify = verifier(job, true);
       }
     }
+    var retr = retrievalOf(loopOpts.store, job.text);
     new CL.EvelynCodeLoop(loopOpts).run(job.text, function (err, r) {
       if (err) return cb({ ok: false, firstDraftOk: false, calls: 0, rounds: 0, tokens: tokens, ms: Date.now() - t0, errors: [String(err.message || err)], activeSkills: tools.activeSkills });
       var last = r.history[r.history.length - 1];
@@ -172,12 +205,12 @@
       var ok = r.ok;
       if (ok && job.cond.indexOf("skill") === 0 && isThree(job.suite)) ok = verifyThree(job.task, r.code, false).ok;
       finishCode(job, r.code, { ok: ok, firstDraftOk: r.firstDraftOk, calls: r.calls, rounds: r.rounds, tokens: tokens, ms: Date.now() - t0,
-        errors: ok ? [] : last.errors, history: r.history, hits: r.hits, efforts: r.efforts, exhausted: r.exhausted, activeSkills: tools.activeSkills }, cb);
+        errors: ok ? [] : last.errors, retrieval: retr, history: r.history, hits: r.hits, efforts: r.efforts, exhausted: r.exhausted, activeSkills: tools.activeSkills }, cb);
     });
   }
 
   function runQa(job, cb) {
-    var c = client(job.seed), t0 = Date.now(), messages, effort = "high", active = [];
+    var c = client(job.seed, job.log), t0 = Date.now(), messages, effort = "high", active = [], qaHits = null;
     if (job.cond === "alone") messages = [{ role: "system", content: SYSTEM_PLAIN }, { role: "user", content: job.text }];
     else {
       var hits, system = SYSTEM_PLAIN + " Answer only from the verified notes; if they do not hold the fact, say so.";
@@ -188,13 +221,14 @@
         active = pkt.activeSkills; hits = pkt.excerpts;
         if (pkt.systemAddition) system += "\n\n" + pkt.systemAddition;
       }
+      qaHits = { hits: hits.map(function (h) { return { shelf: h.shelf, id: h.id, topic: h.topic, score: h.score }; }) };
       messages = [{ role: "system", content: system }, { role: "user", content: (hits.length ? "Verified notes:\n" + hits.map(function (h) { return "[" + h.shelf + "#" + h.id + " | " + h.topic + "] " + h.fullText; }).join("\n") + "\n\n" : "") + job.text }];
     }
     c.chat(messages, effort, function (err, text) {
       var tk = c.lastUsage ? c.lastUsage.completion_tokens : 0;
       if (err) return cb({ ok: false, firstDraftOk: false, calls: 1, rounds: 0, tokens: tk, ms: Date.now() - t0, errors: ["no reply: " + err.message], activeSkills: active });
       var v = BT.checkAnswer(job.task, text);
-      cb({ ok: v.ok, firstDraftOk: v.ok, calls: 1, rounds: 0, tokens: tk, ms: Date.now() - t0, errors: v.errors, answer: String(text).slice(0, 300), activeSkills: active });
+      cb({ ok: v.ok, firstDraftOk: v.ok, calls: 1, rounds: 0, tokens: tk, ms: Date.now() - t0, errors: v.errors, answer: String(text).slice(0, 300), activeSkills: active, retrieval: qaHits });
     });
   }
 
@@ -232,7 +266,7 @@
     })();
   }
 
-  function save() { fs.writeFileSync(resultsPath, JSON.stringify({ backend: BACKEND, model: MODEL, port: PORT, serverCtx: serverCtx, trials: TRIALS, probe: probe, results: results.map(function (r) { var c = {}, k; for (k in r) if (k !== "code") c[k] = r[k]; return c; }) }, null, 1)); }
+  function save() { fs.writeFileSync(resultsPath, JSON.stringify({ schema: 2, backend: BACKEND, model: MODEL, port: PORT, serverCtx: serverCtx, trials: TRIALS, meta: META, probe: probe, results: results.map(function (r) { var c = {}, k; for (k in r) if (k !== "code") c[k] = r[k]; return c; }) }, null, 1)); }
 
   function summary() {
     var lines = [];
@@ -257,11 +291,30 @@
 
   var idx = 0;
   function next() {
-    if (idx >= jobs.length) { save(); console.log(summary()); console.log("\nresults: " + resultsPath); process.exit(0); }
+    if (idx >= jobs.length) { if (META) { META.finishedAt = new Date().toISOString(); META.gpuEnd = gpuNow(); } save(); console.log(summary()); console.log("\nresults: " + resultsPath); process.exit(0); }
     var job = jobs[idx++];
     if (done[key(job)]) return next();
     waitIdle(function () {
+      job.log = [];
+      var startMs = Date.now();
       (job.kind === "qa" ? runQa : runCode)(job, function (r) {
+        r.schema = 2;
+        r.startedAt = new Date(startMs).toISOString();
+        r.finishedAt = new Date().toISOString();
+        var pt = 0, ct = 0;
+        job.log.forEach(function (e) { pt += e.meta.promptTokens || 0; ct += e.meta.completionTokens || 0; });
+        r.promptTokens = pt; r.completionTokens = ct;
+        r.tokensPerSecond = r.ms > 0 && ct ? Math.round(ct / (r.ms / 1000) * 10) / 10 : null;
+        r.calls_detail = job.log.map(function (e) { return e.meta; });
+        if (r.code) {
+          var norm = r.code.replace(/\s+$/, "") + String.fromCharCode(10);   /* the text of the saved code file */
+          r.codeSha256 = crypto.createHash("sha256").update(norm).digest("hex");
+          r.codeChars = norm.length;
+        }
+        var tdir = path.join(OUT, "transcripts", job.suite, job.task);
+        fs.mkdirSync(tdir, { recursive: true });
+        r.transcript = ["transcripts", job.suite, job.task, job.cond + "_run" + (job.trial + 1) + ".json"].join("/");
+        fs.writeFileSync(path.join(OUT, r.transcript), JSON.stringify({ suite: job.suite, task: job.task, cond: job.cond, trial: job.trial, seed: job.seed, ok: r.ok, calls: job.log }, null, 1));
         r.suite = job.suite; r.kind = job.kind; r.task = job.task; r.trial = job.trial; r.cond = job.cond; r.seed = job.seed;
         var keep = {}, k; for (k in r) if (k !== "code") keep[k] = r[k];
         results.push(keep); save();
@@ -276,10 +329,41 @@
 
   http.get({ host: HOST, port: PORT, path: "/props" }, function (res) {
     var b = []; res.on("data", function (d) { b.push(d); });
-    res.on("end", function () { try { serverCtx = JSON.parse(Buffer.concat(b).toString("utf8")).default_generation_settings.n_ctx; } catch (e) { serverCtx = null; } start(); });
+    res.on("end", function () {
+      try {
+        var pj = JSON.parse(Buffer.concat(b).toString("utf8"));
+        serverCtx = pj.default_generation_settings.n_ctx;
+        serverProps = { model_path: pj.model_path || null, build_info: pj.build_info || null, total_slots: pj.total_slots || null, modalities: pj.modalities || null, n_ctx: serverCtx };
+      } catch (e) { serverCtx = null; }
+      start();
+    });
   }).on("error", function () { serverCtx = null; start(); });
 
+  var serverProps = null;
+  function sh(cmd, args) { try { return cp.execFileSync(cmd, args, { encoding: "utf8", timeout: 8000, stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch (e) { return null; } }
+  function gpuNow() { var o = sh("nvidia-smi", ["--query-gpu=index,name,memory.used,memory.total", "--format=csv,noheader,nounits"]); return o ? o.split(String.fromCharCode(10)).map(function (l) { return l.trim(); }) : null; }
+  function makeMeta() {
+    var now = new Date().toISOString(), m = META || {};
+    if (META) { m.resumedAt = (m.resumedAt || []).concat(now); return m; }
+    var three = null;
+    try { three = JSON.parse(fs.readFileSync(path.join(path.dirname(TT.THREE_CJS), "..", "package.json"), "utf8")).version; } catch (e) { three = null; }
+    var startLine = null;
+    if (SERVER_INFO) {
+      try {
+        var lines = fs.readFileSync(SERVER_INFO, "utf8").split(String.fromCharCode(10)).filter(function (l) { return l.charAt(0) === "{" && l.indexOf("ready") > 0; });
+        if (lines.length) startLine = JSON.parse(lines[lines.length - 1]);
+      } catch (e) { startLine = null; }
+    }
+    return {
+      startedAt: now, nodeVersion: process.version, platform: process.platform + " " + os.release(), host: os.hostname() ? "recorded" : null,
+      repoCommit: sh("git", ["-C", path.join(__dirname, "..", ".."), "rev-parse", "HEAD"]), threeVersion: three,
+      serverProps: serverProps, serverStart: startLine, gpuStart: gpuNow(),
+      settings: { maxTokens: MAXTOK, temperature: 0.6, suites: SUITES, conds: CONDS, only: ONLY, waitIdle: WAIT_IDLE }
+    };
+  }
+
   function start() {
+    META = makeMeta();
     console.log("=== " + BACKEND + " " + MODEL + " port " + PORT + ", server context " + serverCtx + ": " + jobs.length + " runs (" + results.length + " already done) ===");
     waitIdle(function () { runProbe(function () { console.log("effort probe: " + JSON.stringify(probe.runs)); next(); }); });
   }
