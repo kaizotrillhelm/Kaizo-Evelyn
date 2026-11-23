@@ -125,6 +125,34 @@ process.stdin.on("end", function () {
     if (!sunL) errors.push("no DirectionalLight");
     else if (!sunL.castShadow) errors.push("the DirectionalLight does not cast shadows");
     if (r.camera.position.length() < 1) errors.push("the camera stands at the origin, inside the island");
+  } else if (task === "photo") {
+    /* a still life lit and shaded the way a photograph is: physical materials, a key light with shadows, a ground that receives them */
+    var sph = meshes(function (o) { return geo(o, "SphereGeometry"); });
+    if (sph.length !== 3) errors.push("expected exactly 3 SphereGeometry meshes (glass, metal, ceramic), found " + sph.length);
+    var phys = meshes(function (o) { return o.material && o.material.isMeshPhysicalMaterial; });
+    if (phys.length < 2) errors.push("expected MeshPhysicalMaterial on at least 2 meshes, found " + phys.length);
+    var glassM = sph.filter(function (m) { return m.material && m.material.isMeshPhysicalMaterial && m.material.transmission >= 0.5; });
+    if (!glassM.length) errors.push("no sphere has a MeshPhysicalMaterial with transmission of at least 0.5 (the glass sphere)");
+    var metalM = sph.filter(function (m) { return m.material && m.material.metalness >= 0.8 && m.material.roughness <= 0.5; });
+    if (!metalM.length) errors.push("no sphere has metalness >= 0.8 and roughness <= 0.5 (the metal sphere)");
+    var rough = sph.map(function (m) { return m.material && m.material.roughness; }).filter(function (x) { return typeof x === "number"; });
+    if (rough.length === 3 && Math.max.apply(null, rough) - Math.min.apply(null, rough) < 0.2) errors.push("the three spheres have nearly the same roughness; a photograph needs a spread of at least 0.2");
+    meshes().forEach(function (m) { if (m.material && m.material.isMeshBasicMaterial) errors.push("a mesh uses MeshBasicMaterial, which ignores light; use a physically based material"); });
+    var base = meshes(function (o) { return (geo(o, "BoxGeometry") || geo(o, "PlaneGeometry") || geo(o, "CylinderGeometry")) && o.receiveShadow; });
+    if (!base.length) errors.push("no table or ground (Box, Plane or Cylinder geometry) with receiveShadow = true");
+    var casters = sph.filter(function (m) { return m.castShadow; });
+    if (casters.length < 3) errors.push("only " + casters.length + " of the 3 spheres cast shadows");
+    var keyL = lights().filter(function (l) { return (l.isDirectionalLight || l.isSpotLight) && l.castShadow; })[0];
+    if (!keyL) errors.push("no DirectionalLight or SpotLight with castShadow = true (the key light)");
+    if (lights().length < 2) errors.push("a photograph needs at least 2 lights (key and fill), found " + lights().length);
+    var c0 = r.camera.position.clone(), d0c = c0.length();
+    if (d0c < 1) errors.push("the camera stands at the origin, inside the still life");
+    if (call(2)) {
+      var c2 = r.camera.position, moved3 = c2.distanceTo(c0);
+      if (moved3 < 1e-3) errors.push("the camera does not move between update(0) and update(2)");
+      else if (Math.abs(c2.length() - d0c) / d0c > 0.02) errors.push("the camera does not keep its distance from the origin (" + d0c.toFixed(2) + " then " + c2.length().toFixed(2) + ")");
+      finite("after update(2)");
+    }
   } else { errors.push("unknown task " + task); }
 
   /* optional visual checks (fifth argument "visual"): lighting contrast, materials, atmosphere and framing from

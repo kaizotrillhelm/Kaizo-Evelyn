@@ -30,6 +30,26 @@ var TASKS = {
   }
 };
 
+/* the photorealistic task: a separate suite ("photo") of evelyn_skills_bench.js; evelyn_threejs_bench.js never runs it.
+   The scene graph is all the verifier sees (no renderer, no picture), so it checks what a photograph needs from the graph:
+   physical materials, a spread of roughness, a key light with shadows and a ground that receives them. */
+TASKS.photo = {
+  title: "photorealistic still life",
+  text: CONTRACT + "a photorealistic still life on a table: a table top (BoxGeometry or PlaneGeometry that receives shadows) and exactly three spheres (SphereGeometry) on it: " +
+    "a glass sphere (MeshPhysicalMaterial with transmission of at least 0.5 and ior 1.5), a polished metal sphere (metalness at least 0.8, roughness at most 0.5) and a matte ceramic sphere (roughness at least 0.7). " +
+    "All three cast shadows. Light it like a photograph: a DirectionalLight or SpotLight with castShadow as the key light, plus a fill light. Use no MeshBasicMaterial. " +
+    "update(t) moves the camera on a slow circular path around the origin at a constant distance, always looking at the spheres."
+};
+
+/* extra verified notes for the photorealistic task (r187) */
+var NOTES_PHOTO = [
+  { shelf: "three", topic: "MeshPhysicalMaterial glass transmission ior", fullText: "new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, ior: 1.5, thickness: 0.5, roughness: 0.05, metalness: 0 }). transmission lets light pass through the surface like glass; ior is the index of refraction (glass 1.5, water 1.33); thickness is the depth of the glass. Without an environment map, a transmissive sphere shows only the lights and the objects behind it." },
+  { shelf: "three", topic: "Metal and ceramic materials roughness metalness", fullText: "Polished metal: MeshStandardMaterial or MeshPhysicalMaterial with metalness 1 and roughness 0.15 to 0.35; metal is dark without something to reflect, so it also needs lights or an environment. Matte ceramic: metalness 0, roughness 0.75 to 0.9, optionally clearcoat 0.3 on a MeshPhysicalMaterial for a glazed look. Varying roughness between objects is what makes a scene read as photographed." },
+  { shelf: "three", topic: "Photographic lighting key fill rim shadows", fullText: "Key light: DirectionalLight(0xfff1e0, 3) at about (6, 10, 5) with castShadow = true and light.shadow.mapSize.set(2048, 2048); set light.shadow.camera left, right, top, bottom to about -6, 6, 6, -6 so the shadow covers the table, and light.shadow.radius = 4 for a soft edge. Fill: a weaker DirectionalLight(0x9fb8ff, 0.6) from the opposite side or a HemisphereLight(0xbfd4ff, 0x30241a, 0.35). The key stays several times stronger than the fill." },
+  { shelf: "three", topic: "Shadows from spheres on a table", fullText: "Every sphere needs mesh.castShadow = true and the table mesh.receiveShadow = true. A table can be a BoxGeometry(8, 0.3, 8) with its top at y = 0: set table.position.y = -0.15 and put the spheres at y = their radius so they sit on it. Spheres of radius 0.6 to 1 at x = -2, 0, 2 fit a table 8 wide." },
+  { shelf: "three", topic: "Camera on a circular path looking at the subject", fullText: "A camera at constant distance R on a circle: camera.position.set(Math.cos(a) * R, h, Math.sin(a) * R) with a = t * speed. The distance from the origin is sqrt(R * R + h * h) at every t, so it stays constant. Call camera.lookAt(0, 0.5, 0) inside update(t) after setting the position." }
+];
+
 /* verified notes about three r187, one shelf. Each one is a rule that holds for r187. */
 var NOTES = [
   { shelf: "three", topic: "Geometry classes", fullText: "BoxGeometry(width, height, depth), SphereGeometry(radius, widthSegments, heightSegments), CylinderGeometry, ConeGeometry, PlaneGeometry(width, height), CircleGeometry, TorusGeometry. THREE.Geometry was removed in r125: every geometry is a BufferGeometry. A mesh is new THREE.Mesh(geometry, material)." },
@@ -55,4 +75,4 @@ function verifyCode(task, code) {
   try { return JSON.parse(line); } catch (e) { return { ok: false, errors: ["verifier gave no result: " + String((r.stderr || r.stdout || "").slice(0, 200))] }; }
 }
 
-module.exports = { TASKS: TASKS, NOTES: NOTES, verifyCode: verifyCode, THREE_CJS: THREE_CJS };
+module.exports = { TASKS: TASKS, NOTES: NOTES, NOTES_PHOTO: NOTES_PHOTO, verifyCode: verifyCode, THREE_CJS: THREE_CJS };

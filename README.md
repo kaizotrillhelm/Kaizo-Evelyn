@@ -8,10 +8,6 @@ A computer that is too old for today's software is still a computer. Evelyn is w
 
 I offer no warranty of any kind, and no protection of any device that runs this software. You run it at your own risk. I am not responsible for any damage, data loss, crash, security problem or other harm to a computer, a phone, a network or anything connected to them, nor for any result the software produces. This includes the old machines Evelyn is written for, the code the optional language-model loop generates and runs, and the commands, scripts and test programs in this folder. Back up what matters first, run the code loop's generated programs only in a sandbox, and read what a script does before you run it. [LICENSE](LICENSE) has the full terms; this paragraph adds to them and does not replace them.
 
-![Evelyn: the concourse, a question to Echo, and the Lab](media/evelyn_demo.gif)
-
-More: [the portrait, 10 seconds](media/evelyn_face_float.gif) and [the cartridge player, validator, debugger and safety charter](media/evelyn_features.gif).
-
 Evelyn is an offline tutor, adventure game and coding lab for computers with little memory and no network. It is based on Tiny2.1's idea of a small language model. This folder holds three editions of it, each with its own tests, plus tests that run the same script through all three and compare the output.
 
 | Folder | Edition | Runs on |
@@ -169,54 +165,23 @@ How to read it. The three failures of Inkling alone were two island runs that us
 
 ### The scenes they made, side by side
 
-Each picture below puts the code of Inkling alone (left) next to the code of Inkling with Evelyn, the loop with notes (right), for the same task and the same seed. All 6 runs of the table above are shown, 3 tasks with 2 runs each. The code of all 16 scenes that were written is in [`examples/threejs/`](examples/threejs/), unchanged, with a short comment on top that says which condition made it and what the checks said. `examples/threejs/bench_results.json` has the numbers of every run without the code.
+The code of all 16 scenes of the first round is in [`examples/threejs/`](examples/threejs/), unchanged, with a short comment on top that says which condition made it and what the checks said. `examples/threejs/bench_results.json` has the numbers of every run without the code. Two pictures follow: the solar system as it was in the first round, and the same task as it is now.
 
-**Spinning cube, run 1.** Task: one lit cube (BoxGeometry) that spins, a light and a camera that sees it.
+**Original (first round, 2026-11-23).** The solar system, run 1: Inkling alone on the left, Inkling with Evelyn (the loop with notes) on the right, the same task and the same seed. Task: a glowing sun at the origin and exactly three planets on circular orbits of different radii, a light, no moons.
 
-![Spinning cube, run 1: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/cube_run1.gif)
+![Solar system, original: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/solar_run1.gif)
 
-Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
+**Current state (2026-11-23).** The same task, trial 1, in five setups: Inkling alone; the loop with notes off; the loop with notes on; the loop with a skill (`evelyn_skills.js`, craft notes and a visual check); and the same with the Caldera graphics skill also registered. Inkling 2 Mini Q4_K_M on LM Studio's llama.cpp runtime, 102,400 tokens of context.
 
+![Solar system, current state: alone, loop notes off, loop notes on, loop with skill, loop with skill and Caldera](media/evelyn_skills_solar_current.gif)
 
-**Spinning cube, run 2.** Task: one lit cube (BoxGeometry) that spins, a light and a camera that sees it.
-
-![Spinning cube, run 2: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/cube_run2.gif)
-
-Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
-
-
-**Solar system, run 1.** Task: a glowing sun at the origin and exactly three planets on circular orbits of different radii, a light, no moons.
-
-![Solar system, run 1: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/solar_run1.gif)
-
-Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
-
-
-**Solar system, run 2.** Task: a glowing sun at the origin and exactly three planets on circular orbits of different radii, a light, no moons.
-
-![Solar system, run 2: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/solar_run2.gif)
-
-Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
-
-
-**Low-poly island with instanced trees, run 1.** Task: a horizontal ground of at least 20 by 20 that receives shadows, at least 30 trees as one InstancedMesh that cast shadows, a DirectionalLight with shadows, and a camera that looks from above and to the side.
-
-![Low-poly island with instanced trees, run 1: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/island_run1.gif)
-
-Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
-
-
-**Low-poly island with instanced trees, run 2.** Task: a horizontal ground of at least 20 by 20 that receives shadows, at least 30 trees as one InstancedMesh that cast shadows, a DirectionalLight with shadows, and a camera that looks from above and to the side.
-
-![Low-poly island with instanced trees, run 2: Inkling alone on the left, Inkling with Evelyn on the right](media/threejs/island_run2.gif)
-
-Code: Inkling alone (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop, no notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block) · Evelyn loop with notes (no code: it used all 6,000 tokens thinking and the reply had no finished code block)
-
+What the checks said for this trial: alone failed (a fifth sphere, the glow around the sun, where four were asked for); the loop with notes off and with notes on passed on the first draft, in 22 and 21 seconds; the two skill setups passed after one repair each, in about 75 seconds, because the skill's checker also runs the visual checks (lighting contrast, materials, atmosphere, framing). Which check the first drafts failed was not recorded in this round. The final code of the loop and notes runs, which were not asked to pass the visual checks, was flagged by them for having no stars, glow or fog. This is one trial in one setup each; the run was still going when the picture was made, so the full numbers are not in this README yet. The pictures were drawn by `tools/threejs_gifs.py`, which reports file sizes and page errors and does not judge the pictures.
 
 How the pictures were made (`tools/threejs_showcase.py`). Each scene is drawn in a headless Brave with software rendering, so no graphics card was used. The canvas is 384 by 216 and the camera's aspect is set to match. `Math.random` is replaced by a seeded generator so the picture can be drawn again. The island scene does not move, so for it only, the camera circles the origin once; every other scene is drawn exactly as its `update(t)` moves it, 10 pictures a second for 6 seconds. The page blocks every network request from the model's code. Pass and fail come from the checker, `js/test/three_verify_worker.js`. I did not watch the GIFs, so nothing here says how good a scene looks, only whether its code passed the checks. The code files are model output and were not edited; Inkling 2 Mini's terms for reusing its output were not looked up.
 
 ```powershell
 python tools/threejs_showcase.py --three-dir <folder with three.module.js and three.core.js>
+python tools/threejs_gifs.py --three-dir <same folder> --bench tests/tmp/skills_bench/llama --media media/skills_bench/llama
 ```
 
 ### Second round, at 102,400 tokens of context (2026-11-23)

@@ -1,7 +1,7 @@
 /* evelyn_skills_bench.js - Inkling with and without Evelyn's notes and skills, on basic tasks and on three.js scenes.
    node js/test/evelyn_skills_bench.js --port 1249 --backend llama.cpp --model inkling --out tests/tmp/skills_bench/llama
    node js/test/evelyn_skills_bench.js --port 1234 --backend lmstudio --model thinkingmachines/inkling-2-mini --out tests/tmp/skills_bench/lmstudio
-   Options: --suite basic,three  --trials 2  --conds alone,loop,notes,skill,skillcal  --maxtokens 6000  --wait-idle 1
+   Options: --suite basic,three,photo  --trials 2  --conds alone,loop,notes,skill,skillcal  --maxtokens 6000  --wait-idle 1
    Nothing is started or stopped here: the server is the caller's, and it took its turn in the GPU queue.
 
    Conditions (same task, same seed in every condition; the seed makes a run repeatable, it does not make it a fair sample):
@@ -41,15 +41,16 @@
 
   var VISUAL_WORKER = path.join(__dirname, "three_verify_worker.js");
   var VISUAL_MODULE = path.join(__dirname, "..", "evelyn_visual_craft.js");
+  function isThree(s) { return s === "three" || s === "photo"; }
   var SYSTEM_PLAIN = "You are a careful engineer.";
 
   /* ---------- stores and skills ---------- */
   function store(records) { var s = new S.OffsetShelfStore(); s.buildFromRecords(records); return s; }
-  var STORES = { three: store(TT.NOTES), basic: store(BT.NOTES), qa: store(BT.QA_NOTES) };
+  var STORES = { three: store(TT.NOTES), photo: store(TT.NOTES.concat(TT.NOTES_PHOTO)), basic: store(BT.NOTES), qa: store(BT.QA_NOTES) };
 
   function skillRegistry(suite, withCaldera) {
     var reg = new Skills.SkillRegistry();
-    if (suite === "three") {
+    if (isThree(suite)) {
       reg.register({
         name: "threejs-craft", description: "three.js r187 scenes: verified API notes and visual craft",
         triggers: ["three.js", "buildscene"], effortWithNotes: 0.30, effortNoNotes: 0.50,
@@ -58,7 +59,7 @@
           "Obey every object count, geometry type and API name of the task exactly; add visual quality without adding meshes (Points, Sprite, fog).",
           "Use a strong key light with a weak ambient light, MeshStandardMaterial on lit objects, and frame the subject to fill about 60 percent of the view."
         ],
-        records: TT.NOTES.concat(VC.THREE_VISUAL_CRAFT_NOTES)
+        records: TT.NOTES.concat(suite === "photo" ? TT.NOTES_PHOTO : [], VC.THREE_VISUAL_CRAFT_NOTES)
       });
     } else if (suite === "basic") {
       reg.register({
@@ -85,11 +86,12 @@
     var items = suite === "basic"
       ? Object.keys(BT.TASKS).map(function (id) { return { suite: "basic", kind: "code", task: id, text: BT.TASKS[id].text }; })
           .concat(Object.keys(BT.QA).map(function (id) { return { suite: "basic", kind: "qa", task: id, text: BT.QA[id].text }; }))
-      : Object.keys(TT.TASKS).map(function (id) { return { suite: "three", kind: "code", task: id, text: TT.TASKS[id].text }; });
+      : Object.keys(TT.TASKS).filter(function (id) { return (suite === "photo") === (id === "photo"); })
+          .map(function (id) { return { suite: suite, kind: "code", task: id, text: TT.TASKS[id].text }; });
     items.forEach(function (it, ti) {
       for (var tr = 0; tr < TRIALS; tr++) CONDS.forEach(function (cond) {
         if (it.kind === "qa" && (cond === "loop" || cond === "skillcal")) return;
-        if (cond === "skillcal" && suite !== "three") return;
+        if (cond === "skillcal" && !isThree(suite)) return;
         jobs.push({ suite: it.suite, kind: it.kind, task: it.task, text: it.text, trial: tr, cond: cond, seed: 2000 + ti * 100 + tr });
       });
     });
@@ -117,7 +119,7 @@
     try { return JSON.parse(line); } catch (e) { return { ok: false, errors: ["verifier gave no result: " + String((r.stderr || r.stdout || "").slice(0, 200))] }; }
   }
   function verifier(job, visual) {
-    if (job.suite === "three") return function (code) { return verifyThree(job.task, code, visual); };
+    if (isThree(job.suite)) return function (code) { return verifyThree(job.task, code, visual); };
     return function (code) { return BT.verifyCode(job.task, code); };
   }
 
@@ -127,7 +129,7 @@
       var dir = path.join(OUT, "code", job.suite, job.task);
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, job.cond + "_run" + (job.trial + 1) + ".js"), code.replace(/\s+$/, "") + "\n");
-      if (job.suite === "three" && base.ok) {
+      if (isThree(job.suite) && base.ok) {
         var v = verifyThree(job.task, code, true);
         base.visualErrors = v.ok ? [] : v.errors;
       }
@@ -137,7 +139,7 @@
   }
 
   function runCode(job, cb) {
-    var c = client(job.seed), t0 = Date.now(), tokens = 0, marker = job.suite === "three" ? "buildScene" : BT.TASKS[job.task].fn;
+    var c = client(job.seed), t0 = Date.now(), tokens = 0, marker = isThree(job.suite) ? "buildScene" : BT.TASKS[job.task].fn;
     var tools = { activeSkills: [], hits: 0 }, loopOpts = { client: c, marker: marker, maxRepairs: 2, verify: verifier(job, false), system: SYSTEM_PLAIN,
       onCall: function (info) { if (info.usage) tokens += info.usage.completion_tokens || 0; } };
 
@@ -158,9 +160,9 @@
       tools.activeSkills = pkt.activeSkills;
       if (pkt.activeSkills.length) {
         loopOpts.store = pkt.store;
-        loopOpts.system = (job.suite === "three" ? VC.VISUAL_SYSTEM : SYSTEM_PLAIN) + "\n\n" + pkt.systemAddition;
+        loopOpts.system = (isThree(job.suite) ? VC.VISUAL_SYSTEM : SYSTEM_PLAIN) + "\n\n" + pkt.systemAddition;
         loopOpts.scheduleWith = [pkt.suggestedEffort, pkt.suggestedEffort / 2, 0.05];
-        if (job.suite === "three") loopOpts.verify = verifier(job, true);
+        if (isThree(job.suite)) loopOpts.verify = verifier(job, true);
       }
     }
     new CL.EvelynCodeLoop(loopOpts).run(job.text, function (err, r) {
@@ -168,9 +170,9 @@
       var last = r.history[r.history.length - 1];
       /* the pass is always the structural checker; a skill run that passed its own (structural + visual) checker also passes this one */
       var ok = r.ok;
-      if (ok && job.cond.indexOf("skill") === 0 && job.suite === "three") ok = verifyThree(job.task, r.code, false).ok;
+      if (ok && job.cond.indexOf("skill") === 0 && isThree(job.suite)) ok = verifyThree(job.task, r.code, false).ok;
       finishCode(job, r.code, { ok: ok, firstDraftOk: r.firstDraftOk, calls: r.calls, rounds: r.rounds, tokens: tokens, ms: Date.now() - t0,
-        errors: ok ? [] : last.errors, hits: r.hits, efforts: r.efforts, exhausted: r.exhausted, activeSkills: tools.activeSkills }, cb);
+        errors: ok ? [] : last.errors, history: r.history, hits: r.hits, efforts: r.efforts, exhausted: r.exhausted, activeSkills: tools.activeSkills }, cb);
     });
   }
 
@@ -238,7 +240,7 @@
       ["code", "qa"].forEach(function (kind) {
         var rs0 = results.filter(function (r) { return r.suite === suite && r.kind === kind; });
         if (!rs0.length) return;
-        lines.push("\n" + suite + " / " + kind + "      runs  first-draft  final pass  calls  tokens  seconds" + (suite === "three" ? "  visual-clean" : ""));
+        lines.push("\n" + suite + " / " + kind + "      runs  first-draft  final pass  calls  tokens  seconds" + (isThree(suite) ? "  visual-clean" : ""));
         CONDS.forEach(function (cond) {
           var rs = rs0.filter(function (r) { return r.cond === cond; });
           if (!rs.length) return;
@@ -246,7 +248,7 @@
           var sum = function (k) { return rs.reduce(function (a, r) { return a + (r[k] || 0); }, 0); };
           var vis = rs.filter(function (r) { return r.ok && r.visualErrors; }), vclean = vis.filter(function (r) { return !r.visualErrors.length; }).length;
           lines.push("  " + cond.padEnd(9) + String(n).padStart(4) + "  " + (f + "/" + n).padStart(10) + "  " + (p + "/" + n).padStart(10) + "  " + (sum("calls") / n).toFixed(1).padStart(5) + "  " + String(Math.round(sum("tokens") / n)).padStart(6) + "  " + (sum("ms") / n / 1000).toFixed(0).padStart(7) +
-            (suite === "three" ? "  " + (vclean + "/" + vis.length).padStart(10) : ""));
+            (isThree(suite) ? "  " + (vclean + "/" + vis.length).padStart(10) : ""));
         });
       });
     });

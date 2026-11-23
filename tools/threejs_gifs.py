@@ -39,7 +39,7 @@ def main():
     ap.add_argument('--media', required=True)
     a = ap.parse_args()
     data = json.load(open(os.path.join(a.bench, 'results.json'), encoding='utf8'))
-    results = [r for r in data['results'] if r['suite'] == 'three']
+    results = [r for r in data['results'] if r['suite'] in ('three', 'photo')]
     by = {(r['task'], r['trial'], r['cond']): r for r in results}
     os.makedirs(os.path.join(a.media, 'single'), exist_ok=True)
     os.makedirs(os.path.join(a.media, 'grid'), exist_ok=True)
@@ -60,7 +60,7 @@ def main():
                         r = by.get((task, trial, cond))
                         if not r:
                             continue
-                        codefile = os.path.join(a.bench, 'code', 'three', task, '%s_run%d.js' % (cond, trial + 1))
+                        codefile = os.path.join(a.bench, 'code', 'photo' if task == 'photo' else 'three', task, '%s_run%d.js' % (cond, trial + 1))
                         frames, msg = None, None
                         if os.path.exists(codefile):
                             pg = b.new_page(viewport={'width': 420, 'height': 260})
