@@ -234,7 +234,7 @@
       var w2 = (endH > 12 ? endH - 12 : endH) + ":" + (((endM + 5) % 60) < 10 ? "0" : "") + ((endM + 5) % 60) + " " + ap2;
       return {
         id: id, shelf: "corale#16", tag: "time",
-        q: "Leave at " + s12 + " on a " + leg + "-minute Coccyx Corale* leg. Arrival clock?",
+        q: "Leave at " + s12 + " on a " + leg + "-minute Coccyx Corale leg. Arrival clock?",
         ans: e12, wrong: [w1, w2, s12],
         failRule: "Add " + leg + " minutes to " + s12 + " to reach " + e12 + "."
       };

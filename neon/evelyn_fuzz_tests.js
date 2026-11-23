@@ -133,7 +133,7 @@
   test("IncrementalScrubber: Bounded slices detect torn shelf rows without looping or mutating healthy rows", function (done) {
     var rows = [];
     for (var i = 0; i < 60; i++) {
-      rows.push({ id: i, zF: B.LZ.compress("Fact number " + i + " about Coccyx Corale* clocks.") });
+      rows.push({ id: i, zF: B.LZ.compress("Fact number " + i + " about Coccyx Corale clocks.") });
     }
     /* Inject 3 torn/corrupted rows */
     rows[14].zF = "";

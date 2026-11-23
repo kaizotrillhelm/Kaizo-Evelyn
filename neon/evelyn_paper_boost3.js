@@ -193,7 +193,7 @@
      5. METAMORPHIC PROBLEM FAMILY GENERATOR (TESTS UNDERSTANDING, NOT ROTE)
      ========================================================================= */
   var MetamorphicQuizzer = {
-    /* Shift a Coccyx Corale* elapsed-time problem by deltaMin minutes (always 12-hr AM/PM) */
+    /* Shift a Coccyx Corale elapsed-time problem by deltaMin minutes (always 12-hr AM/PM) */
     shiftClockFamily: function (startTotalMin, legMin, shifts) {
       function fmt12(m) {
         var mm = ((m % 1440) + 1440) % 1440;

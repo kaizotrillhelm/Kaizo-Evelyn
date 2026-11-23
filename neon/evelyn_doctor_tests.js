@@ -88,7 +88,7 @@
     };
     var r1 = D.repairCartridge(mechanicalBad);
     assert(r1.ok, "Mechanical fixes should yield a valid cartridge: " + r1.manualReview.join("; "));
-    assert(r1.cart.title.indexOf("Coccyx Corale*") >= 0, "Coccyx Corale* asterisk added");
+    assert(r1.cart.title === "Coccyx Corale Shift", "Coccyx Corale is written plainly and left as it is");
     assert(r1.cart.goal.indexOf("Dritchlyssa") >= 0, "Dritchlyssa casing fixed");
     assert(r1.cart.goal.indexOf("8:50 AM") >= 0 && r1.cart.goal.indexOf("5:07 PM") >= 0, "Clocks converted to 12-hour AM/PM");
     assert(r1.cart.echoLine.length <= 128, "echoLine trimmed to <= 128 chars");

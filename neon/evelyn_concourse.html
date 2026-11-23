@@ -85,7 +85,7 @@
       <div id="chatLog" class="out"></div>
       <div class="row" style="margin-top:8px;margin-bottom:0">
         <span style="color:var(--pink);font-weight:bold">&#9658;</span>
-        <input id="chatIn" style="flex:1" placeholder="Ask about Static Choir Hounds, Coccyx Corale*, Palm Harbour, or 7*8...">
+        <input id="chatIn" style="flex:1" placeholder="Ask about Static Choir Hounds, Coccyx Corale, Palm Harbour, or 7*8...">
         <button id="chatGo">Ask Echo</button>
       </div>
     </div>
@@ -116,7 +116,7 @@
         <label style="font-size:12px">Import Pack: <input type="file" id="wkImportPack" style="width:130px"></label>
       </div>
       <textarea id="wkJson"></textarea>
-      <div id="wkReport" class="out" style="min-height:95px;margin-top:8px">Edit any .cart.json above and click Run Rule Validator to check Echo length, 12-hour AM/PM clocks, Julian pronouns, Coccyx Corale*, and element rules.</div>
+      <div id="wkReport" class="out" style="min-height:95px;margin-top:8px">Edit any .cart.json above and click Run Rule Validator to check Echo length, 12-hour AM/PM clocks, Julian pronouns, Coccyx Corale, and element rules.</div>
     </div>
 
     <!-- VIEW 4: PARENT / TEACHER READ-OUT (SM-2 DUE + ADAPTIVE PACING) -->
@@ -349,7 +349,7 @@ let late = ghost + 1;</textarea>
 
     B.EchoWorker.think(q, ui.creat, function (err, res) {
       var nn = (!err && res && res.text) ? B.EchoWorker.verifyAgainstShelf(res.text, fact).text : "";
-      var out = fact || nn || "No local shelf match yet. Drop TINY.BIN or a .txt file above, or ask about Coccyx Corale*, Frostgate, or Static Choir Hounds.";
+      var out = fact || nn || "No local shelf match yet. Drop TINY.BIN or a .txt file above, or ask about Coccyx Corale, Frostgate, or Static Choir Hounds.";
       if (fact && nn) out = fact + "\n[TNY2]: " + nn;
       pushChat("<span style='color:var(--cyan);font-weight:bold'>[Echo] &raquo; </span><span style='color:var(--mint)'>" + out.replace(/\n/g, "<br>") + "</span> <span style='color:var(--blue);font-size:12px'>" + src + "</span>");
       setMon(res && res.acts ? res.acts : [0.8, 0.85, 0.75, 0.9], fact ? 0.96 : (res ? res.conf : 0.4), res && res.lps ? res.lps : 45, "Source verified? " + (src || "TNY2") + ". Zeep zorp, team.");

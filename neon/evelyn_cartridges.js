@@ -66,7 +66,7 @@
       var s = GRAND_ROAD[i];
       L.add("caldera", s.name, s.name + " is at mile " + s.mile + " (" + s.elev + " ft): " + s.look + ".", "Caldera snow: 17,000 ft; Caldera ice: 22,000 ft; Spire ice: 25,000 ft.");
     }
-    L.add("corale", "Coccyx Corale* travel clocks", "Coccyx Corale* walk times: plaza-shop 2m, shop-gondola 4m, plaza-gondola 5m, gondola-start house 14m, start house-track 6m (slide 1m). Last car up 5:07 PM (5:21 PM arrival). Shop closes 6:00 PM.", "Dritchlyssa turns the sign at 5:00 PM.");
+    L.add("corale", "Coccyx Corale travel clocks", "Coccyx Corale walk times: plaza-shop 2m, shop-gondola 4m, plaza-gondola 5m, gondola-start house 14m, start house-track 6m (slide 1m). Last car up 5:07 PM (5:21 PM arrival). Shop closes 6:00 PM.", "Dritchlyssa turns the sign at 5:00 PM.");
     L.add("pu", "Pyramid U Room P-1", "Pyramid U add period closes at 12:00 PM. Wendell logs arrival at 9:07 AM. Maren reaches Lavinia at 11:58 AM. Room P-1 has no cohort of record.", "Connie: Not cohort.");
     L.add("math", "elements arithmetic", "Gold Au (79), Iron Fe (26), Silver Ag (47), Mercury Hg (80, liquid). Water freezes 0 C and boils 100 C. Right triangle: a^2 + b^2 = c^2.", "3-4-5 makes a right corner.");
   }
@@ -94,7 +94,6 @@
       if (/mannequin/i.test(allText)) errs.push("Content rule: remove 'mannequin'.");
       if (/winter games|olympic/i.test(allText)) errs.push("Name rule: remove 'Winter Games' or 'Olympic'.");
       if (/DritchLyssa/.test(allText)) errs.push("Spelling rule: write 'Dritchlyssa' with lower-case l.");
-      if (/Coccyx Corale(?!\*)/.test(allText)) errs.push("Name rule: write 'Coccyx Corale*' with an asterisk in player text.");
       if (/Julian[^"]{0,60}\b(he|him|his|she|her|they|them|their)\b/i.test(allText)) {
         errs.push("Pronoun rule: Julian uses no pronouns; repeat the name Julian.");
       }
@@ -136,12 +135,12 @@
     {
       id: "who_moved_plinth", title: "Who Moved the Plinth?", engine: "detective", series: "XSK",
       grade: "9-11", subject: "logic",
-      goal: "Find the impossible Coccyx Corale* alibi for the empty plinth at 8:50 AM.",
+      goal: "Find the impossible Coccyx Corale alibi for the empty plinth at 8:50 AM.",
       echoLine: "Elara Vance: \"Check every witness clock against travel minutes. I am correct.\"",
       items: [
         {
           id: "pl1", shelf: "corale#16",
-          q: "Case 8:50 AM — Which witness clock breaks the Coccyx Corale* travel table?",
+          q: "Case 8:50 AM — Which witness clock breaks the Coccyx Corale travel table?",
           ans: "Julian: start house 8:42 AM -> shop 8:50 AM",
           wrong: [
             "Elara Vance: shop till 8:46 AM -> shop 8:50 AM",
@@ -151,7 +150,7 @@
         },
         {
           id: "pl2", shelf: "corale#16",
-          q: "Case 5:21 PM — Which witness clock breaks the Coccyx Corale* travel table?",
+          q: "Case 5:21 PM — Which witness clock breaks the Coccyx Corale travel table?",
           ans: "Elias: plaza 5:12 PM -> start house 5:21 PM",
           wrong: [
             "Dritchlyssa: turned shop sign at 5:00 PM -> returns window 5:21 PM",
@@ -179,7 +178,7 @@
       goal: "Reach Room P-1 starting at 9:07 AM before the 12:00 PM add-period close.",
       echoLine: "Wendell: \"State your purpose.\" Lavinia: \"Pending Review.\"",
       items: [
-        { id: "mz1", q: "Lavinia asks behind frosted glass: What time does the Pyramid U add period close?", ans: "12:00 PM", wrong: ["5:07 PM","6:00 PM"], shelf: "pu#17", failRule: "Pyramid U add period closes at 12:00 PM. 5:07 PM and 6:00 PM are Coccyx Corale* clocks." }
+        { id: "mz1", q: "Lavinia asks behind frosted glass: What time does the Pyramid U add period close?", ans: "12:00 PM", wrong: ["5:07 PM","6:00 PM"], shelf: "pu#17", failRule: "Pyramid U add period closes at 12:00 PM. 5:07 PM and 6:00 PM are Coccyx Corale clocks." }
       ]
     },
     {

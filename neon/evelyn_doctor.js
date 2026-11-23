@@ -37,12 +37,8 @@
       fixes.push("Converted clock 0" + h + ":" + mm + " -> " + hr + ":" + mm + " AM");
       return hr + ":" + mm + " AM";
     });
-    /* Enforce Coccyx Corale* asterisk and lower-case l in Dritchlyssa */
-    var s3 = s2.replace(/Coccyx Corale(?!\*)/g, function () {
-      fixes.push("Added required asterisk to Coccyx Corale*");
-      return "Coccyx Corale*";
-    });
-    var s4 = s3.replace(/DritchLyssa/g, function () {
+    /* Spelling of Dritchlyssa (lower-case l) */
+    var s4 = s2.replace(/DritchLyssa/g, function () {
       fixes.push("Fixed lower-case l in Dritchlyssa");
       return "Dritchlyssa";
     });

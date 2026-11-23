@@ -65,7 +65,7 @@
 
     /* First exposure to surprising new facts */
     var obs1 = mem.observe("capital of estonia", "tallinn");
-    var obs2 = mem.observe("last gondola corale*", "5:07 PM");
+    var obs2 = mem.observe("last gondola corale", "5:07 PM");
     var obs3 = mem.observe("frostgate elevation", "17,500 ft");
     assert(obs1.surprise > 0.1, "Novel fact should yield positive surprise");
 
@@ -75,7 +75,7 @@
 
     /* Recall immediately from test-time fast weights */
     var r1 = mem.recall("capital of estonia");
-    var r2 = mem.recall("last gondola corale*");
+    var r2 = mem.recall("last gondola corale");
     assert(r1 && r1.val === "tallinn", "Failed to recall Estonia capital from fastM");
     assert(r2 && r2.val === "5:07 PM", "Failed to recall 5:07 PM gondola from fastM");
 

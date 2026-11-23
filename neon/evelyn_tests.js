@@ -117,8 +117,8 @@
   test("LZ: Empty, short, repeated, and prose round-trip + compression", function (done) {
     assertEq(B.LZ.decompress(B.LZ.compress("")), "", "Empty round-trip");
     assertEq(B.LZ.decompress(B.LZ.compress("A")), "A", "Single-char round-trip");
-    var sample = "Coccyx Corale* walk times: plaza to shop 2 min, shop to gondola 4 min. " +
-                 "Coccyx Corale* walk times: plaza to gondola 5 min, gondola to start house 14 min. " +
+    var sample = "Coccyx Corale walk times: plaza to shop 2 min, shop to gondola 4 min. " +
+                 "Coccyx Corale walk times: plaza to gondola 5 min, gondola to start house 14 min. " +
                  "Static Choir Hounds live in Server Farm Alley and Midnight Neon Market.";
     var packed = B.LZ.compress(sample);
     assertEq(B.LZ.decompress(packed), sample, "Prose round-trip failed");
@@ -290,7 +290,7 @@
   /* =========================================================================
      SUITE 5: CANON TABLES, CLOCK FORMATTER & CARTRIDGE VALIDATOR
      ========================================================================= */
-  test("Canon Tables: Coccyx Corale* travel symmetry, Grand Road 12 stops, and 12-hour clocks", function (done) {
+  test("Canon Tables: Coccyx Corale travel symmetry, Grand Road 12 stops, and 12-hour clocks", function (done) {
     assertEq(C.CORALE_TRAVEL["plaza|shop"], 2, "plaza|shop = 2");
     assertEq(C.CORALE_TRAVEL["shop|gondola"], 4, "shop|gondola = 4");
     assertEq(C.CORALE_TRAVEL["plaza|gondola"], 5, "plaza|gondola = 5");
@@ -360,7 +360,7 @@
     var c5 = cloneBase(); c5.goal = "Ask DritchLyssa at the shop.";
     assert(!C.CartridgeValidator.validate(c5).ok, "Should reject capital L in Dritchlyssa");
     var c6 = cloneBase(); c6.goal = "Walk across Coccyx Corale plaza.";
-    assert(!C.CartridgeValidator.validate(c6).ok, "Should reject Coccyx Corale without asterisk");
+    assert(C.CartridgeValidator.validate(c6).ok, "Coccyx Corale is written plainly, with no asterisk");
 
     /* 4. Julian pronoun guard */
     var c7 = cloneBase(); c7.goal = "Julian said he moved the box.";
