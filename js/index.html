@@ -37,6 +37,7 @@
     <button id="tabAsk" class="active">1. Knowledge and tutor</button>
     <button id="tabAdv">2. Desert adventure</button>
     <button id="tabCode">3. Coding lab</button>
+    <button id="tabLlm">4. Model agent</button>
   </div>
 
   <div id="viewAsk" class="panel">
@@ -65,7 +66,51 @@
     <div id="codeOut" class="out"></div>
   </div>
 
+  <div id="viewLlm" class="panel" style="display:none">
+    <div class="small" style="margin-bottom:8px">Connect Evelyn to a language model that runs on this computer (LM Studio, llama-server, Ollama). Nothing is sent anywhere else. Evelyn searches her library first, the model answers from it, and she checks every number and source.</div>
+    <div class="bar small">
+      <span>Server:</span>
+      <select id="llmPreset">
+        <option value="lmstudio">LM Studio (port 1234)</option>
+        <option value="llama.cpp">llama-server (port 8080)</option>
+        <option value="ollama">Ollama (port 11434)</option>
+        <option value="custom">Custom address</option>
+      </select>
+      <input id="llmUrl" size="26" placeholder="http://127.0.0.1:1234">
+      <span>Model:</span>
+      <input id="llmModel" size="30" placeholder="model id">
+      <button id="llmTest">Test connection</button>
+    </div>
+    <div class="bar small">
+      <label><input type="checkbox" id="llmNotes" checked> use the library as notes</label>
+      <label><input type="checkbox" id="llmSkills" checked> use skills for code</label>
+      <span>Effort:</span>
+      <select id="llmEffort"><option value="">auto</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="0.3">0.3</option></select>
+    </div>
+    <div class="bar">
+      <input id="llmQ" style="width:62%" placeholder="Ask the agent (for example: 17+25, or a question about the library)">
+      <button id="llmAsk">Ask the agent</button>
+    </div>
+    <div class="bar">
+      <input id="llmTask" style="width:62%" placeholder="Code to write, for example: function sumEven(a) returns the sum of the even numbers">
+      <button id="llmWrite">Write code</button>
+    </div>
+    <div class="bar">
+      <input id="llmExpr" style="width:62%" placeholder="Then run this call in the sandbox, for example: sumEven([1,2,3,4])">
+      <button id="llmRun">Run in sandbox</button>
+    </div>
+    <div id="llmOut" class="out">Pick a server, press Test connection, then ask. In this page the code check only parses the code; the sandbox button runs it in a hidden frame with no network and a 3 second limit. Run generated code only if you have read it.</div>
+    <div class="small" style="margin-top:6px">A page opened as a file (double click) can reach the server only if the server allows it: llama-server does; in LM Studio switch on Enable CORS in the server settings. The same functions are in the terminal: node js/evelyn_cli.js --llm http://127.0.0.1:1234, then /llm, /agent, /write.</div>
+  </div>
+
 <script src="evelyn_core.js"></script>
+<script src="evelyn_stream.js"></script>
+<script src="evelyn_inkling_agent.js"></script>
+<script src="evelyn_inkling_codeloop.js"></script>
+<script src="evelyn_visual_craft.js"></script>
+<script src="evelyn_skills.js"></script>
+<script src="skill_caldera_graphics.js"></script>
+<script src="evelyn_llm.js"></script>
 <script>
 (function () {
   var lib = new Evelyn.LibraryStore();
@@ -118,6 +163,8 @@
     document.getElementById("viewAsk").style.display = which === "ask" ? "" : "none";
     document.getElementById("viewAdv").style.display = which === "adv" ? "" : "none";
     document.getElementById("viewCode").style.display = which === "code" ? "" : "none";
+    document.getElementById("viewLlm").style.display = which === "llm" ? "" : "none";
+    document.getElementById("tabLlm").className = which === "llm" ? "active" : "";
     document.getElementById("tabAsk").className = which === "ask" ? "active" : "";
     document.getElementById("tabAdv").className = which === "adv" ? "active" : "";
     document.getElementById("tabCode").className = which === "code" ? "active" : "";
@@ -126,6 +173,7 @@
   document.getElementById("tabAsk").onclick = function () { showTab("ask"); };
   document.getElementById("tabAdv").onclick = function () { showTab("adv"); };
   document.getElementById("tabCode").onclick = function () { showTab("code"); };
+  document.getElementById("tabLlm").onclick = function () { showTab("llm"); };
 
   function doAsk() {
     var q = document.getElementById("askInput").value.replace(/^\s+|\s+$/g, "");
@@ -160,6 +208,110 @@
   }
   lSel.onchange = function () { loadLesson(Number(lSel.value)); };
   loadLesson(0);
+
+
+  /* ---------- tab 4: the model loader and the agent (js/evelyn_llm.js) ---------- */
+  var KEY = "evelyn_llm_settings_v1";
+  var llmOut = document.getElementById("llmOut");
+  var lastCode = "";
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { saved = {}; }
+  function el(id) { return document.getElementById(id); }
+  function trim(t) { return String(t).replace(/^\s+|\s+$/g, ""); }
+  function applyPreset(name) {
+    var p = EvelynLLM.PRESETS[name];
+    if (p) { el("llmUrl").value = p.url; el("llmModel").value = p.model; }
+  }
+  el("llmPreset").value = saved.preset || "lmstudio";
+  if (saved.url) { el("llmUrl").value = saved.url; el("llmModel").value = saved.model || ""; }
+  else applyPreset(el("llmPreset").value);
+  if (saved.effort !== undefined && saved.effort !== null) el("llmEffort").value = String(saved.effort);
+  if (saved.notes === false) el("llmNotes").checked = false;
+  if (saved.skills === false) el("llmSkills").checked = false;
+  el("llmPreset").onchange = function () { applyPreset(el("llmPreset").value); };
+
+  function llmNow() {
+    var ev = el("llmEffort").value;
+    var o = { url: trim(el("llmUrl").value), model: trim(el("llmModel").value), preset: el("llmPreset").value,
+      effort: ev === "" ? null : (isNaN(Number(ev)) ? ev : Number(ev)), notes: el("llmNotes").checked, skills: el("llmSkills").checked };
+    try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) { /* storage may be off */ }
+    var c = { lib: lib, pm: pm, url: o.url, model: o.model, effort: o.effort, notes: o.notes, skills: o.skills };
+    if (EvelynLLM.PRESETS[o.preset]) c.backend = EvelynLLM.PRESETS[o.preset].backend;
+    return EvelynLLM.create(c);
+  }
+  function busy(on, msg) {
+    ["llmTest", "llmAsk", "llmWrite", "llmRun"].forEach(function (id) { el(id).disabled = on; });
+    if (msg) llmOut.textContent = msg;
+  }
+  var NL = String.fromCharCode(10);
+  el("llmTest").onclick = function () {
+    busy(true, "Testing the connection...");
+    llmNow().test(function (err, r) {
+      busy(false);
+      llmOut.textContent = err ? "Not reachable: " + err.message + NL + NL + "Is the server running, and does it allow a page opened as a file (LM Studio: Enable CORS)?"
+        : "Reachable: " + r.url + " lists " + r.models.length + " model(s)." + NL + (r.hasModel ? "The model '" + el("llmModel").value + "' is one of them." : "The model '" + el("llmModel").value + "' is NOT in the list. First ones: " + r.models.slice(0, 6).join(", "));
+    });
+  };
+  el("llmAsk").onclick = function () {
+    var q = trim(el("llmQ").value);
+    if (!q) return;
+    busy(true, "Asking...");
+    llmNow().ask(q, function (err, r) {
+      busy(false);
+      llmOut.textContent = err ? "Error: " + err.message : r.answer + NL + NL + "[" + r.path + (r.verified ? ", checked against the library" : ", not checked") + "]";
+      refreshHeader();
+    });
+  };
+  el("llmWrite").onclick = function () {
+    var t = trim(el("llmTask").value);
+    if (!t) return;
+    busy(true, "Writing code (the model may think for a while)...");
+    llmNow().write(t, function (err, r) {
+      busy(false);
+      if (err) { llmOut.textContent = "Error: " + err.message; return; }
+      lastCode = r.code || "";
+      var last = r.history[r.history.length - 1] || {};
+      llmOut.textContent = (r.code || "(no code came back)") + NL + NL + "[" + (r.ok ? "the code parses and defines the function" : "the check did NOT pass: " + (last.errors || []).join("; ")) +
+        " | " + r.calls + " call(s)" + (r.activeSkills.length ? " | skills: " + r.activeSkills.join(", ") : "") + "]";
+    });
+  };
+  /* a hidden frame with no network: a content policy of 'none', a 3 second limit, console output sent to the page */
+  function runSandbox(code, expr, cb) {
+    var ap = String.fromCharCode(39), dq = String.fromCharCode(34), bs = String.fromCharCode(92), out = [], done = false, timer = null;
+    var f = document.createElement("iframe");
+    f.setAttribute("sandbox", "allow-scripts");
+    f.style.display = "none";
+    function finish(note) {
+      if (done) return; done = true;
+      clearTimeout(timer); window.removeEventListener("message", onMsg);
+      if (f.parentNode) f.parentNode.removeChild(f);
+      cb(out, note);
+    }
+    function onMsg(e) {
+      if (e.source !== f.contentWindow || !e.data || !e.data.evl) return;
+      if (e.data.evl === "done") finish(null); else out.push(e.data.text);
+    }
+    timer = setTimeout(function () { finish("stopped after 3 seconds"); }, 3000);
+    window.addEventListener("message", onMsg);
+    var payload = JSON.stringify({ code: code, expr: expr }).replace(/</g, bs + "u003c");
+    var star = ap + "*" + ap;
+    f.srcdoc = "<meta http-equiv=" + dq + "Content-Security-Policy" + dq + " content=" + dq + "default-src " + ap + "none" + ap + "; script-src " + ap + "unsafe-inline" + ap + " " + ap + "unsafe-eval" + ap + dq + ">" +
+      "<script>var P=" + payload + ";" +
+      "function send(t){parent.postMessage({evl:" + ap + "log" + ap + ",text:t}," + star + ");}" +
+      "console.log=function(){send([].slice.call(arguments).join(" + ap + " " + ap + "));};" +
+      "try{(0,eval)(P.code);if(P.expr){var r=(0,eval)(P.expr);send(" + ap + "=> " + ap + "+JSON.stringify(r));}}catch(e){send(" + ap + "Error: " + ap + "+e.message);}" +
+      "parent.postMessage({evl:" + ap + "done" + ap + "}," + star + ");</" + "script>";
+    document.body.appendChild(f);
+  }
+  el("llmRun").onclick = function () {
+    if (!lastCode) { llmOut.textContent = "Write code first (the button above), then run it."; return; }
+    busy(true, "Running in the sandbox...");
+    runSandbox(lastCode, trim(el("llmExpr").value), function (out, note) {
+      busy(false);
+      llmOut.textContent = "Sandbox output" + (note ? " (" + note + ")" : "") + ":" + NL + (out.join(NL) || "(nothing printed)") + NL + NL + lastCode;
+    });
+  };
+  window.__evelynRunSandbox = runSandbox;
 
   document.getElementById("runCodeBtn").onclick = function () {
     var res = Evelyn.CodeSandbox.run(document.getElementById("codeInput").value);

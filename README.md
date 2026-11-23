@@ -175,7 +175,7 @@ The code of all 16 scenes of the first round is in [`examples/threejs/`](example
 
 ![Solar system, current state: alone, loop notes off, loop notes on, loop with skill, loop with skill and Caldera](media/evelyn_skills_solar_current.gif)
 
-What the checks said for this trial: alone failed (a fifth sphere, the glow around the sun, where four were asked for); the loop with notes off and with notes on passed on the first draft, in 22 and 21 seconds; the two skill setups passed after one repair each, in about 75 seconds, because the skill's checker also runs the visual checks (lighting contrast, materials, atmosphere, framing). Which check the first drafts failed was not recorded in this round. The final code of the loop and notes runs, which were not asked to pass the visual checks, was flagged by them for having no stars, glow or fog. This is one trial in one setup each; the run was still going when the picture was made, so the full numbers are not in this README yet. The pictures were drawn by `tools/threejs_gifs.py`, which reports file sizes and page errors and does not judge the pictures.
+What the checks said for this trial: alone failed (a fifth sphere, the glow around the sun, where four were asked for); the loop with notes off and with notes on passed on the first draft, in 22 and 21 seconds; the two skill setups passed after one repair each, in about 75 seconds, because the skill's checker also runs the visual checks (lighting contrast, materials, atmosphere, framing). Which check the first drafts failed was not recorded in this round. The final code of the loop and notes runs, which were not asked to pass the visual checks, was flagged by them for having no stars, glow or fog. This is one trial in one setup each. All 81 runs of the bench, with their tables, the code of every scene and 8 side-by-side GIFs (cube, solar system, island and a photorealistic still life, two trials each), are in [`results/skills_bench_2026-11-23/`](results/skills_bench_2026-11-23/README.md). The pictures were drawn by `tools/threejs_gifs.py`, which reports file sizes and page errors and does not judge the pictures.
 
 How the pictures were made (`tools/threejs_showcase.py`). Each scene is drawn in a headless Brave with software rendering, so no graphics card was used. The canvas is 384 by 216 and the camera's aspect is set to match. `Math.random` is replaced by a seeded generator so the picture can be drawn again. The island scene does not move, so for it only, the camera circles the origin once; every other scene is drawn exactly as its `update(t)` moves it, 10 pictures a second for 6 seconds. The page blocks every network request from the model's code. Pass and fail come from the checker, `js/test/three_verify_worker.js`. I did not watch the GIFs, so nothing here says how good a scene looks, only whether its code passed the checks. The code files are model output and were not edited; Inkling 2 Mini's terms for reusing its output were not looked up.
 
@@ -256,6 +256,55 @@ Four plain ES5 files in `js/` sit beside the Inkling code loop. None of them cal
 - `evelyn_visual_craft.js`: two task-agnostic craft notes for three.js scenes (lighting contrast, atmosphere and framing), a `VISUAL_SYSTEM` prompt, and `verifySceneVisuals(THREE, scene, camera)`, which reads the scene graph (no WebGL) and reports a missing key light, ambient light that is too strong, all-`MeshBasicMaterial` scenes, no atmosphere, and a hero subject that fills too little of the view. It cannot judge a picture. `js/test/three_verify_worker.js` runs it when given `visual` as the fifth argument and one more `--allow-fs-read` for `evelyn_visual_craft.js`; without it the benchmark is unchanged. Whether these checks make the generated scenes look better was not measured.
 
 `node js\test\evelyn_skills_tests.js` runs 14 tests of these files with a stub model client and a stand-in for three.js.
+
+## Using the model loader and the agent (terminal and page)
+
+Evelyn can stand in front of a language model that runs on the same machine, such as LM Studio, llama-server or Ollama. The same functions are in the terminal and in the page; both are written in `js/evelyn_llm.js`. Nothing is sent anywhere except to the address you give, and nothing here starts or stops a model server: start the model yourself (LM Studio: load the model and start the server; llama-server: run it with `--port`).
+
+### In the terminal
+
+```powershell
+node js\evelyn_cli.js --llm http://127.0.0.1:1234 --llm-model thinkingmachines/inkling-2-mini
+```
+
+The start-up line says which server, model and backend are in use. Then:
+
+| Command | What it does |
+| --- | --- |
+| `/llm` | Tests the connection (`GET /v1/models`, no tokens) and says whether the model you named is in the server's list. |
+| `/agent <question>` | The agent. A sum of whole numbers is answered with no model call. Otherwise the library is searched, the model answers from the excerpts, and every number and source of the answer is checked against them; a wrong number is sent back once, and a second failure returns the library text. |
+| `/write <task>` | The code loop. Notes and skills are retrieved, the model writes code, the code is run in a vm context with no `require`, no `process` and a 3 second limit, and the exact errors go back for up to two repairs. Name the function (`function sumEven(a) returns ...`) so the check can look for it. |
+| `/bins` | Shows which `.bin` of a model pack (below) each role resolves to. |
+| `/mode`, `/adv`, `/code`, `/profile`, `/quit` | As before. |
+
+Options (all optional):
+
+| Option | Meaning |
+| --- | --- |
+| `--llm <url>` | The server address, for example `http://127.0.0.1:1234` (LM Studio) or `http://127.0.0.1:8080` (llama-server). |
+| `--llm-preset <name>` | `llama.cpp`, `lmstudio` or `ollama`: sets the address, a model name and the backend; `--llm` and `--llm-model` override it. |
+| `--llm-model <id>` | The model id as the server lists it (`/llm` prints the list when yours is missing). |
+| `--backend <name>` | `inkling`, `qwen`, `nemotron` or `muse`: how the effort setting is sent (`js/evelyn_registry.js`). The Muse profile is a placeholder. |
+| `--effort <value>` | `low`, `medium`, `high` or a number such as `0.3`. Without it the agent uses `low` when it found excerpts and `medium` when it found none, and the code loop uses its own schedule. |
+| `--no-notes` | Do not give the library to the model as notes. |
+| `--no-skills` | Do not retrieve skills for code tasks. |
+| `--skill <SKILL.md>` | Add a skill file (frontmatter with `name`, `description`, `triggers`, `effort`; `##` sections are the notes; an `## Invariants` section holds the rules). Repeatable. |
+| `--pack <manifest.json> --tier <potato, standard or workstation>` | Load the tutor `.bin` from a model pack by hardware tier (`js/evelyn_registry.js`). A manifest is `{ "bins": [ { "id": "tutor_small", "role": "tutor", "backend": "*", "file": "tutor.bin", "format": "TNY2", "minTier": "potato", "crc32": 123456789 } ] }`; files are looked up beside the manifest, the CRC32 is optional, and a tier never loads a `.bin` marked for a stronger tier. No trained role `.bin` ships with Evelyn. |
+| `--bin TINY.BIN` | A single `TNY2` file, as before. It wins over `--pack`. |
+
+LM Studio: the server needs to be on (Developer tab, Start Server) and the model loaded. The default port is 1234. The models in its list are named as `/llm` prints them. The context length is whatever you loaded the model with; Evelyn does not set it.
+
+### In the page
+
+Double click `js\index.html`, or open it in any browser: it is one file that loads the other `.js` files beside it by relative name, so it needs no web server and no install. The first three tabs are the tutor, the adventure and the coding lab. **Tab 4, Model agent**:
+
+1. Pick the server (LM Studio, llama-server, Ollama or a custom address) and the model id, then press **Test connection**. It lists the models the server reports.
+2. **Ask the agent** works as `/agent` does; **Write code** works as `/write`; **Run in sandbox** runs the last code, and an optional call such as `sumEven([1,2,3,4])`, in a hidden frame with no network and a 3 second limit.
+3. The tick boxes turn the library notes and the skills off; **Effort** sets `low`, `medium`, `high` or `0.3`. The settings are kept in this browser.
+
+Things to know about the page: a page opened as a file can reach the server only if the server allows cross-origin requests. llama-server does. LM Studio needs **Enable CORS** in the server settings; without it the page says "Not reachable" and names this. The code check in the page only parses the code and looks for the function name; it does not run it. The sandbox frame stops a loop that never ends after 3 seconds (tried in Brave, where the frame runs in its own process; another browser may behave differently), and generated code should be read before it is run. Loading a `TINY.BIN` and a `.txt` library works as before, in the bar at the top.
+
+Checks: `node js\test\evelyn_llm_tests.js` (12 tests against `tests\mock_llm_server.js`, which stands in for a model server) and `python tests\check_gui_llm_browser.py` (opens `js/index.html` as a file in Brave and drives all four tabs; 18 checks). Both are steps of `node tests\run_all.js`.
 
 ## Tests
 

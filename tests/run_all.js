@@ -66,6 +66,7 @@ step("trained-model file: torch and the engine agree (skips without torch)", fun
   return { status: r.code === 0 ? (skipped ? "SKIP" : "PASS") : "FAIL", note: r.out.trim().split("\n").pop(), detail: r.code === 0 ? "" : r.out.slice(-2000) };
 });
 step("JavaScript registry, skills and visual-check tests", function () { return node("js/test/evelyn_skills_tests.js"); });
+step("JavaScript model loader, agent and command-line tests (mock server)", function () { return node("js/test/evelyn_llm_tests.js"); });
 step("JavaScript speed-work parity tests", function () { return node("js/test/evelyn_fast_tests.js"); });
 step("benchmark suite runs and agrees with the old code (quick)", function () {
   var r = run(NODE, [path.join(ROOT, "tests", "bench_evelyn.js"), "--quick", "--only=1,2,4,5"]);
@@ -131,6 +132,15 @@ step("Scar Brand game chum data is current", function () {
   var r = run(NODE, [game], path.dirname(game));
   var last = r.out.split("\n").filter(function (l) { return /\d+ passed/.test(l); }).pop() || "";
   return { status: r.code === 0 ? "PASS" : "FAIL", note: last.replace(/=/g, "").trim(), detail: r.code === 0 ? "" : r.out.slice(-3000) };
+});
+step("index.html from a file, with the model agent tab (real Brave)", function () {
+  var brave = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe";
+  if (!fs.existsSync(brave)) return { status: "SKIP", note: "Brave not found" };
+  var probe = run("python", ["-c", "from playwright.sync_api import sync_playwright"]);
+  if (probe.code !== 0) return { status: "SKIP", note: "Playwright for Python not installed" };
+  var rr = cp.spawnSync("python", [path.join(ROOT, "tests", "check_gui_llm_browser.py")], { cwd: ROOT, encoding: "latin1", timeout: 300000 });
+  var r = { code: rr.status === null ? 124 : rr.status, out: (rr.stdout || "") + (rr.stderr || "") };
+  return { status: r.code === 0 ? "PASS" : "FAIL", note: r.out.trim().split("\n").filter(function (l) { return /passed/.test(l); }).pop() || "", detail: r.code === 0 ? "" : r.out.slice(-3000) };
 });
 step("caldarium: real browser (Brave)", function () {
   var brave = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe";

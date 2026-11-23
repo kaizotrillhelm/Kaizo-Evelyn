@@ -1,0 +1,1850 @@
+{
+ "backend": "llama.cpp",
+ "model": "inkling",
+ "port": 1249,
+ "serverCtx": 102400,
+ "trials": 2,
+ "probe": {
+  "question": "What is 17 + 25? Reply with the number only.",
+  "runs": [
+   {
+    "effort": 0,
+    "tokens": 35,
+    "answer": "42"
+   },
+   {
+    "effort": 0.9,
+    "tokens": 41,
+    "answer": "42"
+   }
+  ]
+ },
+ "results": [
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 362,
+   "ms": 7213,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 263,
+   "ms": 5363,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 194,
+   "ms": 4685,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 212,
+   "ms": 4925,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 327,
+   "ms": 6647,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 315,
+   "ms": 6326,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 213,
+   "ms": 4357,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 130,
+   "ms": 2786,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "sumEven",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 831,
+   "ms": 15890,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 493,
+   "ms": 9703,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 387,
+   "ms": 8245,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 300,
+   "ms": 6640,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 5532,
+   "ms": 105744,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 399,
+   "ms": 8036,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 373,
+   "ms": 7409,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 448,
+   "ms": 8730,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "wordFreq",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 589,
+   "ms": 11517,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 340,
+   "ms": 6921,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 438,
+   "ms": 9250,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 487,
+   "ms": 10231,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 531,
+   "ms": 10426,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 300,
+   "ms": 6242,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 226,
+   "ms": 4678,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 487,
+   "ms": 9432,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "balanced",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 439,
+   "ms": 8863,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2300
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 403,
+   "ms": 8050,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2300
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 495,
+   "ms": 10247,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2300
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 279,
+   "ms": 6285,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2300
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 514,
+   "ms": 10143,
+   "errors": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2301
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 322,
+   "ms": 6455,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2301
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 421,
+   "ms": 8251,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2301
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 303,
+   "ms": 6000,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "js-functions"
+   ],
+   "suite": "basic",
+   "kind": "code",
+   "task": "mergeIntervals",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2301
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 353,
+   "ms": 6894,
+   "errors": [
+    "the answer does not contain 17 or seventeen"
+   ],
+   "answer": "I don’t have reliable information about the number of bells in the harbour tower of Brindlewick.",
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "bells",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2400
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 68,
+   "ms": 1938,
+   "errors": [],
+   "answer": "The harbour tower of Brindlewick has 17 bells.",
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "bells",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2400
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 61,
+   "ms": 1887,
+   "errors": [],
+   "answer": "The harbour tower of Brindlewick has 17 bells.",
+   "activeSkills": [
+    "brindlewick-lore"
+   ],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "bells",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2400
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 547,
+   "ms": 10628,
+   "errors": [
+    "the answer does not contain 17 or seventeen"
+   ],
+   "answer": "I don’t have reliable information about Brindlewick’s harbour tower, so I can’t say how many bells it has.",
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "bells",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2401
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 68,
+   "ms": 1681,
+   "errors": [],
+   "answer": "The harbour tower of Brindlewick has 17 bells.",
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "bells",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2401
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 67,
+   "ms": 1582,
+   "errors": [],
+   "answer": "The harbour tower of Brindlewick has 17 bells.",
+   "activeSkills": [
+    "brindlewick-lore"
+   ],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "bells",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2401
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 472,
+   "ms": 9110,
+   "errors": [
+    "the answer does not contain odalys fenn"
+   ],
+   "answer": "I don’t have reliable information about who keeps the key to the Brindlewick salt vault.",
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "vault",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2500
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 112,
+   "ms": 2739,
+   "errors": [],
+   "answer": "Odalys Fenn, the harbour clerk, keeps the key to the Brindlewick salt vault.",
+   "activeSkills": [],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "vault",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2500
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 98,
+   "ms": 2410,
+   "errors": [],
+   "answer": "Odalys Fenn, the harbour clerk, keeps the key to the Brindlewick salt vault.",
+   "activeSkills": [
+    "brindlewick-lore"
+   ],
+   "suite": "basic",
+   "kind": "qa",
+   "task": "vault",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2500
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 679,
+   "ms": 13416,
+   "errors": [],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 505,
+   "ms": 9993,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 422,
+   "ms": 8978,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: ambient/hemisphere light (0.50) is too strong compared to key light (1.20); lower ambient to <= 0.15 * key for crisp light/shadow contrast."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 2810,
+   "ms": 57202,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 2644,
+   "ms": 55009,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 0,
+   "cond": "skillcal",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1175,
+   "ms": 22564,
+   "errors": [],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 936,
+   "ms": 17973,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 463,
+   "ms": 9062,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 894,
+   "ms": 17349,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 2924,
+   "ms": 58931,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "cube",
+   "trial": 1,
+   "cond": "skillcal",
+   "seed": 2001
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 4007,
+   "ms": 77119,
+   "errors": [
+    "expected exactly 4 SphereGeometry meshes (a sun and 3 planets), found 5"
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1130,
+   "ms": 21861,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1042,
+   "ms": 20721,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3657,
+   "ms": 74654,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3595,
+   "ms": 73604,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 0,
+   "cond": "skillcal",
+   "seed": 2100
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 5830,
+   "ms": 112514,
+   "errors": [],
+   "visualErrors": [
+    "Visual check: hero subject fills only 37% of viewport; move camera closer so it fills ~55-70%."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1805,
+   "ms": 34868,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1346,
+   "ms": 25904,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3658,
+   "ms": 73509,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2101
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3439,
+   "ms": 70106,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "solar",
+   "trial": 1,
+   "cond": "skillcal",
+   "seed": 2101
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 6000,
+   "ms": 115400,
+   "errors": [
+    "the reply has no closed fenced code block"
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 4100,
+   "ms": 78901,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: ambient/hemisphere light (0.65) is too strong compared to key light (1.60); lower ambient to <= 0.15 * key for crisp light/shadow contrast."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1984,
+   "ms": 38921,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3195,
+   "ms": 65172,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2200
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3958,
+   "ms": 81825,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 0,
+   "cond": "skillcal",
+   "seed": 2200
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 6000,
+   "ms": 115302,
+   "errors": [
+    "no reply: Inkling sent no answer text (finish: length); the token limit may have been used up by reasoning"
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 3021,
+   "ms": 58321,
+   "errors": [],
+   "hits": 0,
+   "efforts": [
+    0.55
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: ambient/hemisphere light (0.70) is too strong compared to key light (1.60); lower ambient to <= 0.15 * key for crisp light/shadow contrast."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 2064,
+   "ms": 40551,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: ambient/hemisphere light (0.60) is too strong compared to key light (1.60); lower ambient to <= 0.15 * key for crisp light/shadow contrast.",
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3721,
+   "ms": 74768,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2201
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 4281,
+   "ms": 86256,
+   "errors": [],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "three",
+   "kind": "code",
+   "task": "island",
+   "trial": 1,
+   "cond": "skillcal",
+   "seed": 2201
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 5807,
+   "ms": 111376,
+   "errors": [
+    "expected MeshPhysicalMaterial on at least 2 meshes, found 1"
+   ],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 0,
+   "cond": "alone",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 4864,
+   "ms": 96179,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": false,
+     "errors": [
+      "expected MeshPhysicalMaterial on at least 2 meshes, found 1"
+     ]
+    },
+    {
+     "round": 1,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 0,
+   "efforts": [
+    0.55,
+    0.25
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 0,
+   "cond": "loop",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1661,
+   "ms": 32887,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 0,
+   "cond": "notes",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3701,
+   "ms": 75561,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": false,
+     "errors": [
+      "buildScene(THREE) threw: document is not defined"
+     ]
+    },
+    {
+     "round": 1,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 0,
+   "cond": "skill",
+   "seed": 2000
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 2584,
+   "ms": 54485,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": false,
+     "errors": [
+      "buildScene(THREE) threw: document is not defined"
+     ]
+    },
+    {
+     "round": 1,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 0,
+   "cond": "skillcal",
+   "seed": 2000
+  },
+  {
+   "ok": false,
+   "firstDraftOk": false,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 6000,
+   "ms": 114908,
+   "errors": [
+    "no reply: Inkling sent no answer text (finish: length); the token limit may have been used up by reasoning"
+   ],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 1,
+   "cond": "alone",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3511,
+   "ms": 69156,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": false,
+     "errors": [
+      "expected MeshPhysicalMaterial on at least 2 meshes, found 1"
+     ]
+    },
+    {
+     "round": 1,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 0,
+   "efforts": [
+    0.55,
+    0.25
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 1,
+   "cond": "loop",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": true,
+   "calls": 1,
+   "rounds": 0,
+   "tokens": 1776,
+   "ms": 34142,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 4,
+   "efforts": [
+    0.2
+   ],
+   "exhausted": 0,
+   "activeSkills": [],
+   "visualErrors": [
+    "Visual check: scene has no atmospheric depth; add a THREE.Points starfield/particles, THREE.Sprite glow, or scene.fog."
+   ],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 1,
+   "cond": "notes",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 3649,
+   "ms": 73440,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": false,
+     "errors": [
+      "buildScene(THREE) threw: document is not defined"
+     ]
+    },
+    {
+     "round": 1,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft"
+   ],
+   "visualErrors": [],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 1,
+   "cond": "skill",
+   "seed": 2001
+  },
+  {
+   "ok": true,
+   "firstDraftOk": false,
+   "calls": 2,
+   "rounds": 1,
+   "tokens": 2975,
+   "ms": 60056,
+   "errors": [],
+   "history": [
+    {
+     "round": 0,
+     "ok": false,
+     "errors": [
+      "buildScene(THREE) threw: document is not defined"
+     ]
+    },
+    {
+     "round": 1,
+     "ok": true,
+     "errors": []
+    }
+   ],
+   "hits": 4,
+   "efforts": [
+    0.3,
+    0.15
+   ],
+   "exhausted": 0,
+   "activeSkills": [
+    "threejs-craft",
+    "caldera-graphics"
+   ],
+   "visualErrors": [],
+   "suite": "photo",
+   "kind": "code",
+   "task": "photo",
+   "trial": 1,
+   "cond": "skillcal",
+   "seed": 2001
+  }
+ ]
+}

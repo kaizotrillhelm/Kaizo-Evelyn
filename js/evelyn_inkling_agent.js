@@ -30,6 +30,13 @@
     opts = opts || {};
     this.host = opts.host || "127.0.0.1";
     this.port = opts.port || 8080;
+    this.baseUrl = opts.baseUrl ? String(opts.baseUrl).replace(/\/+$/, "") : null;   /* "http://127.0.0.1:1234", a browser or LM Studio style address */
+    if (this.baseUrl) {
+      var m = /^http:\/\/([^\/:]+)(?::(\d+))?(\/.*)?$/i.exec(this.baseUrl);
+      if (m) { this.host = m[1]; this.port = m[2] ? Number(m[2]) : 80; this.pathPrefix = m[3] || ""; }
+      else if (/^https:/i.test(this.baseUrl)) this.pathPrefix = null;   /* https is used through fetch only (a browser) */
+    }
+    if (this.pathPrefix === undefined) this.pathPrefix = "";
     this.model = opts.model || "inkling-2-mini";
     this.temperature = opts.temperature !== undefined ? opts.temperature : 0.2;
     this.maxTokens = opts.maxTokens || 350;
@@ -61,7 +68,6 @@
     var self = this, finished = false;
     this.lastUsage = null;
     function done(err, text) { if (finished) return; finished = true; cb(err, text); }
-    if (!http) { done(new Error("InklingClient needs Node's http module")); return; }
     var body = {
       model: this.model,
       messages: messages,
@@ -73,40 +79,88 @@
     for (k in ef) body[k] = ef[k];
     this.lastRequest = body;
     var payload = JSON.stringify(body);
+
+    /* one place for what a reply means, for the Node request and for fetch */
+    function reply(statusCode, text) {
+      var json;
+      try { json = JSON.parse(text); } catch (e) {
+        done(new Error("Inkling server answered " + statusCode + " with text that is not JSON: " + text.slice(0, 120)));
+        return;
+      }
+      if (statusCode >= 400 || json.error) {
+        var m = json.error && (json.error.message || json.error);
+        done(new Error("Inkling server error " + statusCode + ": " + String(m || text).slice(0, 200)));
+        return;
+      }
+      var msg = json.choices && json.choices[0] && json.choices[0].message;
+      if (!msg) { done(new Error("Inkling server sent no choices")); return; }
+      self.lastRaw = msg;
+      self.lastUsage = json.usage || null;
+      var content = typeof msg.content === "string" ? msg.content : "";
+      if (!content.replace(/\s+/g, "")) {
+        done(new Error("Inkling sent no answer text (finish: " + (json.choices[0].finish_reason || "?") +
+          "); the token limit may have been used up by reasoning"));
+        return;
+      }
+      done(null, content);
+    }
+
+    /* a browser (no Node http module): fetch. From a page opened as a file the server must allow cross-origin requests. */
+    if (!http) {
+      if (typeof fetch !== "function") { done(new Error("InklingClient needs Node's http module or fetch")); return; }
+      var url = (this.baseUrl || ("http://" + this.host + ":" + this.port)) + "/v1/chat/completions";
+      var ctl = (typeof AbortController === "function") ? new AbortController() : null, timer = null;
+      if (ctl) timer = setTimeout(function () { ctl.abort(); }, this.timeoutMs);
+      fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, signal: ctl ? ctl.signal : undefined })
+        .then(function (res) { return res.text().then(function (t) { if (timer) clearTimeout(timer); reply(res.status, t); }); })
+        .catch(function (e) {
+          if (timer) clearTimeout(timer);
+          done(new Error("Inkling server not reachable at " + url + " (" + String(e && e.message || e) + "). Is it running, and does it allow requests from a page opened as a file (LM Studio: Enable CORS)?"));
+        });
+      return;
+    }
+    if (this.pathPrefix === null) { done(new Error("InklingClient in Node speaks http only; use an http address")); return; }
+
     var req = http.request({
-      hostname: this.host, port: this.port, path: "/v1/chat/completions", method: "POST",
+      hostname: this.host, port: this.port, path: (this.pathPrefix || "") + "/v1/chat/completions", method: "POST",
       headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
     }, function (res) {
       var chunks = [];
       res.on("data", function (d) { chunks.push(d); });
-      res.on("end", function () {
-        var text = Buffer.concat(chunks).toString("utf8"), json;
-        try { json = JSON.parse(text); } catch (e) {
-          done(new Error("Inkling server answered " + res.statusCode + " with text that is not JSON: " + text.slice(0, 120)));
-          return;
-        }
-        if (res.statusCode >= 400 || json.error) {
-          var m = json.error && (json.error.message || json.error);
-          done(new Error("Inkling server error " + res.statusCode + ": " + String(m || text).slice(0, 200)));
-          return;
-        }
-        var msg = json.choices && json.choices[0] && json.choices[0].message;
-        if (!msg) { done(new Error("Inkling server sent no choices")); return; }
-        self.lastRaw = msg;
-        self.lastUsage = json.usage || null;
-        var content = typeof msg.content === "string" ? msg.content : "";
-        if (!content.replace(/\s+/g, "")) {
-          done(new Error("Inkling sent no answer text (finish: " + (json.choices[0].finish_reason || "?") +
-            "); the token limit may have been used up by reasoning"));
-          return;
-        }
-        done(null, content);
-      });
+      res.on("end", function () { reply(res.statusCode, Buffer.concat(chunks).toString("utf8")); });
       res.on("error", done);
     });
     req.setTimeout(this.timeoutMs, function () { req.destroy(new Error("Inkling request timed out after " + self.timeoutMs + " ms")); });
     req.on("error", done);
     req.write(payload);
+    req.end();
+  };
+
+  /* GET /v1/models: the ids the server lists, for a connection test (no model call, no tokens). cb(err, [ids]) */
+  InklingClient.prototype.models = function (cb) {
+    var self = this, finished = false;
+    function done(err, ids) { if (finished) return; finished = true; cb(err, ids); }
+    function parse(status, text) {
+      var j;
+      try { j = JSON.parse(text); } catch (e) { return done(new Error("the server answered " + status + " but not with JSON")); }
+      var list = (j.data || j.models || []).map(function (m) { return m.id || m.name || m.model; }).filter(Boolean);
+      if (status >= 400) return done(new Error("the server answered " + status));
+      done(null, list);
+    }
+    if (!http) {
+      if (typeof fetch !== "function") return done(new Error("needs Node's http module or fetch"));
+      var url = (this.baseUrl || ("http://" + this.host + ":" + this.port)) + "/v1/models";
+      fetch(url).then(function (res) { return res.text().then(function (t) { parse(res.status, t); }); })
+        .catch(function (e) { done(new Error("not reachable at " + url + " (" + String(e && e.message || e) + ")")); });
+      return;
+    }
+    var req = http.request({ hostname: this.host, port: this.port, path: (this.pathPrefix || "") + "/v1/models", method: "GET" }, function (res) {
+      var chunks = [];
+      res.on("data", function (d) { chunks.push(d); });
+      res.on("end", function () { parse(res.statusCode, Buffer.concat(chunks).toString("utf8")); });
+    });
+    req.setTimeout(8000, function () { req.destroy(new Error("timed out")); });
+    req.on("error", function (e) { done(new Error("not reachable at " + self.host + ":" + self.port + " (" + e.message + ")")); });
     req.end();
   };
 
