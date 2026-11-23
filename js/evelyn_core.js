@@ -131,47 +131,96 @@
      ====================================================================== */
   var B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+  /* The compressor looks a (prefix code, next character) pair up in a chained hash table:
+     4096 buckets of 16-bit heads (8 KB), the hash is shifts and xors (no multiply), and the
+     chain arrays are touched only up to the codes that were made. The scratch tables are
+     made on first use and cleared by walking the buckets that were touched, so a short fact
+     costs a few hundred operations and no allocation of a dictionary. Output is identical,
+     byte for byte, to the older string-keyed dictionary (js/test/legacy keeps that version
+     and the tests compare the two). */
+  var LZ_BUCKETS = 4096, LZ_MASK = LZ_BUCKETS - 1;
+  var lzHead = null, lzNext = null, lzPref = null, lzChar = null, lzTouched = null, lzOut = null;
+
+  function lzScratch(need) {
+    if (!lzHead) {
+      lzHead = new Uint16Array(LZ_BUCKETS);
+      lzTouched = new Uint16Array(LZ_BUCKETS);
+      lzNext = new Uint16Array(65536);
+      lzPref = new Uint16Array(65536);
+      lzChar = new Uint8Array(65536);
+      lzOut = new Uint8Array(512);
+    }
+    if (lzOut.length < need) {
+      var n = lzOut.length;
+      while (n < need) n *= 2;
+      lzOut = new Uint8Array(n);
+    }
+  }
+
+  var B64_REV = new Int8Array(128), B64_CODES = new Array(64);
+  (function () {
+    var i;
+    for (i = 0; i < 128; i++) B64_REV[i] = -1;
+    for (i = 0; i < 64; i++) { B64_REV[B64.charCodeAt(i)] = i; B64_CODES[i] = B64.charCodeAt(i); }
+  })();
+  function b64Val(code) { return code < 128 ? B64_REV[code] : -1; }
+
   var LZCodec = {
     MAX_CODE: 65535,
 
     compress: function (str) {
       str = String(str === undefined || str === null ? "" : str);
-      if (!str) return new Uint8Array(0);
-      var dict = Object.create(null), i;
-      for (i = 0; i < 256; i++) dict[String.fromCharCode(i)] = i;
-      var w = "", codes = [], nextCode = 256;
-      for (i = 0; i < str.length; i++) {
-        var ch = str.charCodeAt(i);
-        var c = String.fromCharCode(ch > 255 ? 63 : ch);
-        var wc = w + c;
-        if (wc in dict) {
-          w = wc;
+      var len = str.length;
+      if (!len) return new Uint8Array(0);
+      lzScratch(len * 2);
+      var out = lzOut, outPos = 0, head = lzHead, nxt = lzNext, pref = lzPref, chr = lzChar, touched = lzTouched;
+      var nextCode = 256, nTouched = 0, i, ch, c, h, code;
+      ch = str.charCodeAt(0);
+      var w = ch > 255 ? 63 : ch;
+      for (i = 1; i < len; i++) {
+        ch = str.charCodeAt(i);
+        c = ch > 255 ? 63 : ch;
+        h = ((w << 4) ^ (w >>> 4) ^ (c << 3) ^ c) & LZ_MASK;
+        code = head[h];
+        while (code !== 0) {
+          if (pref[code] === w && chr[code] === c) break;
+          code = nxt[code];
+        }
+        if (code !== 0) {
+          w = code;
         } else {
-          codes.push(dict[w]);
-          if (nextCode < LZCodec.MAX_CODE) dict[wc] = nextCode++;
+          out[outPos++] = w & 255;
+          out[outPos++] = (w >> 8) & 255;
+          if (nextCode < LZCodec.MAX_CODE) {
+            if (head[h] === 0) touched[nTouched++] = h;
+            pref[nextCode] = w;
+            chr[nextCode] = c;
+            nxt[nextCode] = head[h];
+            head[h] = nextCode;
+            nextCode++;
+          }
           w = c;
         }
       }
-      if (w !== "") codes.push(dict[w]);
-      var out = new Uint8Array(codes.length * 2);
-      for (i = 0; i < codes.length; i++) {
-        out[i * 2] = codes[i] & 255;
-        out[i * 2 + 1] = (codes[i] >> 8) & 255;
-      }
-      return out;
+      out[outPos++] = w & 255;
+      out[outPos++] = (w >> 8) & 255;
+      for (i = 0; i < nTouched; i++) head[touched[i]] = 0;
+      var result = new Uint8Array(outPos);
+      result.set(out.subarray(0, outPos));
+      return result;
     },
 
     decompress: function (bytes) {
       if (!bytes || bytes.length === 0) return "";
-      if (bytes.length % 2 !== 0) throw new Error("Corrupt LZW stream: odd length");
+      var n = bytes.length;
+      if (n % 2 !== 0) throw new Error("Corrupt LZW stream: odd length");
       var dict = [], i;
       for (i = 0; i < 256; i++) dict[i] = String.fromCharCode(i);
-      var codes = [];
-      for (i = 0; i < bytes.length; i += 2) codes.push(bytes[i] | (bytes[i + 1] << 8));
-      if (codes[0] > 255) throw new Error("Corrupt LZW stream at code " + codes[0]);
-      var w = dict[codes[0]], result = [w], nextCode = 256;
-      for (i = 1; i < codes.length; i++) {
-        var k = codes[i], entry;
+      var first = bytes[0] | (bytes[1] << 8);
+      if (first > 255) throw new Error("Corrupt LZW stream at code " + first);
+      var w = dict[first], result = [w], nextCode = 256;
+      for (i = 2; i < n; i += 2) {
+        var k = bytes[i] | (bytes[i + 1] << 8), entry;
         if (k < nextCode && dict[k] !== undefined) entry = dict[k];
         else if (k === nextCode) entry = w + w.charAt(0);
         else throw new Error("Corrupt LZW stream at code " + k);
@@ -183,34 +232,36 @@
     },
 
     toBase64: function (bytes) {
-      var out = [];
-      for (var i = 0; i < bytes.length; i += 3) {
+      var n = bytes.length, parts = [], buf = [], i;
+      for (i = 0; i < n; i += 3) {
         var b0 = bytes[i];
-        var b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-        var b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+        var b1 = i + 1 < n ? bytes[i + 1] : 0;
+        var b2 = i + 2 < n ? bytes[i + 2] : 0;
         var trip = (b0 << 16) | (b1 << 8) | b2;
-        out.push(B64.charAt((trip >> 18) & 63));
-        out.push(B64.charAt((trip >> 12) & 63));
-        out.push(i + 1 < bytes.length ? B64.charAt((trip >> 6) & 63) : "=");
-        out.push(i + 2 < bytes.length ? B64.charAt(trip & 63) : "=");
+        buf.push(B64_CODES[(trip >> 18) & 63], B64_CODES[(trip >> 12) & 63],
+          i + 1 < n ? B64_CODES[(trip >> 6) & 63] : 61, i + 2 < n ? B64_CODES[trip & 63] : 61);
+        if (buf.length >= 4096) { parts.push(String.fromCharCode.apply(null, buf)); buf = []; }
       }
-      return out.join("");
+      if (buf.length) parts.push(String.fromCharCode.apply(null, buf));
+      return parts.join("");
     },
 
     fromBase64: function (b64) {
-      var clean = String(b64).replace(/=+$/, "");
-      var bytes = [];
-      for (var i = 0; i < clean.length; i += 4) {
-        var c0 = B64.indexOf(clean.charAt(i));
-        var c1 = B64.indexOf(clean.charAt(i + 1));
-        var c2 = i + 2 < clean.length ? B64.indexOf(clean.charAt(i + 2)) : 0;
-        var c3 = i + 3 < clean.length ? B64.indexOf(clean.charAt(i + 3)) : 0;
+      var s = String(b64), len = s.length;
+      while (len > 0 && s.charCodeAt(len - 1) === 61) len--;
+      var rem = len & 3;
+      var out = new Uint8Array((len >> 2) * 3 + (rem === 0 ? 0 : (rem === 1 ? 1 : rem - 1))), o = 0;
+      for (var i = 0; i < len; i += 4) {
+        var c0 = b64Val(s.charCodeAt(i));
+        var c1 = i + 1 < len ? b64Val(s.charCodeAt(i + 1)) : 0;
+        var c2 = i + 2 < len ? b64Val(s.charCodeAt(i + 2)) : 0;
+        var c3 = i + 3 < len ? b64Val(s.charCodeAt(i + 3)) : 0;
         var trip = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
-        bytes.push((trip >> 16) & 255);
-        if (i + 2 < clean.length) bytes.push((trip >> 8) & 255);
-        if (i + 3 < clean.length) bytes.push(trip & 255);
+        out[o++] = (trip >> 16) & 255;
+        if (i + 2 < len) out[o++] = (trip >> 8) & 255;
+        if (i + 3 < len) out[o++] = trip & 255;
       }
-      return new Uint8Array(bytes);
+      return out;
     }
   };
 
@@ -310,23 +361,47 @@
 
   /* Ranked by score, then by lower id. A query word that sits in the topic
      scores 3, a word found only in the fact scores 1. */
+  /* The lower-cased topic of a record is made once and kept beside the records (not in them, so
+     nothing extra is saved to disk). A record that was replaced gets a new entry. */
+  LibraryStore.prototype._topicLower = function (id) {
+    var rec = this.records[id], c = this._tl ? this._tl[id] : undefined;
+    if (!this._tl) this._tl = [];
+    if (!c || c.r !== rec) c = this._tl[id] = { r: rec, t: rec.topic.toLowerCase() };
+    return c.t;
+  };
+
   LibraryStore.prototype.search = function (query, topK) {
     topK = topK || 2;
     var qWords = tokenizeWords(query);
     if (qWords.length === 0) return [];
-    var scores = Object.create(null), ids = [];
-    for (var i = 0; i < qWords.length; i++) {
+    var n = this.records.length, i, j, id;
+    if (!this._sc || this._sc.length < n) this._sc = new Int32Array(n + 64);
+    var scores = this._sc, ids = [];
+    for (i = 0; i < qWords.length; i++) {
       var w = qWords[i], list = this.invIndex[w];
       if (!list) continue;
-      for (var j = 0; j < list.length; j++) {
-        var id = list[j];
-        if (scores[id] === undefined) { scores[id] = 0; ids.push(id); }
-        scores[id] += this.records[id].topic.toLowerCase().indexOf(w) >= 0 ? 3 : 1;
+      for (j = 0; j < list.length; j++) {
+        id = list[j];
+        if (scores[id] === 0) ids.push(id);
+        scores[id] += this._topicLower(id).indexOf(w) >= 0 ? 3 : 1;
       }
     }
-    ids.sort(function (a, b) { return (scores[b] - scores[a]) || (a - b); });
-    var out = [];
-    for (var k = 0; k < Math.min(topK, ids.length); k++) out.push(this.readRecord(this.records[ids[k]]));
+    var k = Math.min(topK, ids.length), out = [], pick, m;
+    if (k <= 8) {
+      /* a few best ones: k passes over the candidates, no full sort */
+      for (pick = 0; pick < k; pick++) {
+        var bi = pick, bid = ids[pick], bs = scores[bid];
+        for (m = pick + 1; m < ids.length; m++) {
+          var cid = ids[m], cs = scores[cid];
+          if (cs > bs || (cs === bs && cid < bid)) { bi = m; bid = cid; bs = cs; }
+        }
+        if (bi !== pick) { ids[bi] = ids[pick]; ids[pick] = bid; }
+      }
+    } else {
+      ids.sort(function (a, b) { return (scores[b] - scores[a]) || (a - b); });
+    }
+    for (i = 0; i < k; i++) out.push(this.readRecord(this.records[ids[i]]));
+    for (i = 0; i < ids.length; i++) scores[ids[i]] = 0;
     return out;
   };
 
@@ -459,6 +534,25 @@
     }
   };
 
+  /* For the second feed-forward matrix, whose input has just been through the ReLU and holds
+     many zeros: the columns that are not zero are picked out once (their numbers and their
+     places), and every row multiplies only those. Adding w * 0 never changes a sum, so the
+     result equals _matvec bit for bit. When more than half of the columns are live the plain
+     loop is faster and is used. (Measured on a 96 by 256 matrix: 1.2 times faster at half
+     zeros and 3.0 times at four fifths on a current JIT, and 1.7 to 3.9 times with no JIT.) */
+  Tiny2Model.prototype._matvecSparse = function (t, x, y) {
+    var rows = t.rows, cols = t.cols, w = t.w, sc = t.scale, c, r, k = 0;
+    if (!this._nz || this._nz.length < cols) { this._nz = new Int32Array(cols); this._nzv = new Float32Array(cols); }
+    var idx = this._nz, val = this._nzv;
+    for (c = 0; c < cols; c++) if (x[c] !== 0) { idx[k] = c; val[k] = x[c]; k++; }
+    if (k > (cols >> 1)) { this._matvec(t, x, y); return; }
+    for (r = 0; r < rows; r++) {
+      var s = 0.0, base = r * cols;
+      for (c = 0; c < k; c++) s += w[base + idx[c]] * val[c];
+      y[r] = s * sc[r];
+    }
+  };
+
   Tiny2Model.prototype._norm = function (x, g, y) {
     var D = this.D, s = 0.0, i;
     for (i = 0; i < D; i++) s += x[i] * x[i];
@@ -476,7 +570,7 @@
     var k = 127.0 / big;
     for (i = 0; i < D; i++) {
       v = src[i] * k;
-      dst[dstOff + i] = v < 0 ? Math.ceil(v - 0.5) : Math.floor(v + 0.5);
+      dst[dstOff + i] = (v < 0 ? v - 0.5 : v + 0.5) | 0;   /* the same rounding as ceil / floor on [-127, 127] */
     }
     return big / 127.0;
   };
@@ -528,7 +622,7 @@
       this._norm(this.bx, this.g2[l], this.bh);
       this._matvec(this.f1[l], this.bh, this.bm);
       for (i = 0; i < HID; i++) if (this.bm[i] < 0) this.bm[i] = 0;
-      this._matvec(this.f2[l], this.bm, this.bt);
+      this._matvecSparse(this.f2[l], this.bm, this.bt);
       for (i = 0; i < D; i++) this.bx[i] += this.bt[i];
     }
     this._norm(this.bx, this.gf, this.bh);
@@ -798,6 +892,100 @@
   function toTxt(v) { return isStr(v) ? v : fmtNum(v); }
   function isTrue(v) { return isStr(v) ? v.length > 0 : v !== 0; }
 
+  /* Expression parser. The cursor lives in module variables (the parser is not re-entered), so
+     an expression costs no closures. Tokens of an expression text are cached: names are made
+     upper case once, when the text is first seen. */
+  var EXPR_RE = /"[^"]*"|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|<=|>=|==|!=|[+\-*\/%()<>=]/g;
+  var exprCache = Object.create(null), exprCacheN = 0;
+  var pT = [], pI = 0, pV = null;
+
+  function tokenize(expr) {
+    var key = String(expr), hit = exprCache[key];
+    if (hit) return hit;
+    var toks = key.match(EXPR_RE) || [];
+    for (var i = 0; i < toks.length; i++) {
+      var c0 = toks[i].charCodeAt(0);
+      if ((c0 >= 65 && c0 <= 90) || (c0 >= 97 && c0 <= 122) || c0 === 95) toks[i] = toks[i].toUpperCase();
+    }
+    if (exprCacheN >= 512) { exprCache = Object.create(null); exprCacheN = 0; }
+    exprCache[key] = toks; exprCacheN++;
+    return toks;
+  }
+
+  function pFactor() {
+    var t = pT[pI++];
+    if (t === undefined) return 0;
+    if (t === "(") {
+      var v = pCmp();
+      if (pT[pI] === ")") pI++;
+      return v;
+    }
+    if (t === "-") return -toNum(pFactor());
+    var c0 = t.charCodeAt(0);
+    if (c0 === 34) return t.slice(1, -1);
+    if (c0 >= 48 && c0 <= 57) return parseFloat(t);
+    return Object.prototype.hasOwnProperty.call(pV, t) ? pV[t] : 0;
+  }
+  function pMul() {
+    var val = pFactor(), op;
+    while ((op = pT[pI]) === "*" || op === "/" || op === "%") {
+      pI++;
+      var r = toNum(pFactor()), l = toNum(val);
+      if (op === "*") val = l * r;
+      else if (op === "/") val = r === 0 ? 0 : l / r;
+      else val = r === 0 ? 0 : l % r;
+    }
+    return val;
+  }
+  function pAdd() {
+    var val = pMul(), op;
+    while ((op = pT[pI]) === "+" || op === "-") {
+      pI++;
+      var r = pMul();
+      if (op === "+") val = (isStr(val) || isStr(r)) ? toTxt(val) + toTxt(r) : val + r;
+      else val = toNum(val) - toNum(r);
+    }
+    return val;
+  }
+  function pCmp() {
+    var left = pAdd(), op = pT[pI];
+    if (op === "<" || op === ">" || op === "<=" || op === ">=" || op === "==" || op === "!=" || op === "=") {
+      pI++;
+      var right = pAdd(), c;
+      if (isStr(left) && isStr(right)) c = left < right ? -1 : (left > right ? 1 : 0);
+      else { var a = toNum(left), b = toNum(right); c = a < b ? -1 : (a > b ? 1 : 0); }
+      if (op === "<") return c < 0 ? 1 : 0;
+      if (op === ">") return c > 0 ? 1 : 0;
+      if (op === "<=") return c <= 0 ? 1 : 0;
+      if (op === ">=") return c >= 0 ? 1 : 0;
+      if (op === "!=") return c !== 0 ? 1 : 0;
+      return c === 0 ? 1 : 0;
+    }
+    return left;
+  }
+
+  function trimBoth(s) { return s.replace(/^\s+|\s+$/g, ""); }
+
+  /* What a command line means, worked out the first time the line is run (so an error in a
+     line that is never reached is never reported, as before). raw and upper are the trimmed
+     text and its upper-case form; n is the line number for messages. */
+  function planCommand(raw, upper, n) {
+    if (upper.indexOf("LET ") === 0) {
+      var eq = raw.indexOf("=");
+      if (eq < 0) return { op: "ERR", msg: "Line " + n + ": LET needs '='" };
+      var vname = trimBoth(raw.slice(4, eq));
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(vname)) return { op: "ERR", msg: "Line " + n + ": bad variable name '" + vname + "'" };
+      return { op: "LET", name: vname.toUpperCase(), expr: raw.slice(eq + 1) };
+    }
+    if (upper.indexOf("PRINT ") === 0) return { op: "PRINT", expr: raw.slice(6) };
+    if (upper === "CLEAR") return { op: "CLEAR" };
+    if (upper.indexOf("MOVE ") === 0) return { op: "MOVE", expr: raw.slice(5) };
+    if (upper.indexOf("TURN ") === 0) return { op: "TURN", left: trimBoth(upper.slice(5)) === "LEFT" };
+    if (upper.indexOf("REPEAT ") === 0) return { op: "REPEAT", expr: raw.slice(7) };
+    if (upper === "END") return { op: "END" };
+    return { op: "ERR", msg: "Line " + n + ": Unknown command '" + raw + "'" };
+  }
+
   var CodeSandbox = {
     toNum: toNum,
     toTxt: toTxt,
@@ -805,61 +993,10 @@
     /* Expression grammar: comparison > + - > * / % > unary minus > ( ) "text" number name.
        Names are not case sensitive. Dividing or taking a remainder by 0 gives 0. */
     evalExpr: function (expr, vars) {
-      var tokens = String(expr).match(/"[^"]*"|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|<=|>=|==|!=|[+\-*\/%()<>=]/g) || [];
-      var pos = 0;
-      function peek() { return tokens[pos]; }
-      function next() { return tokens[pos++]; }
-
-      function parseComparison() {
-        var left = parseAdd(), op = peek();
-        if (op === "<" || op === ">" || op === "<=" || op === ">=" || op === "==" || op === "!=" || op === "=") {
-          next();
-          var right = parseAdd(), c;
-          if (isStr(left) && isStr(right)) c = left < right ? -1 : (left > right ? 1 : 0);
-          else { var a = toNum(left), b = toNum(right); c = a < b ? -1 : (a > b ? 1 : 0); }
-          if (op === "<") return c < 0 ? 1 : 0;
-          if (op === ">") return c > 0 ? 1 : 0;
-          if (op === "<=") return c <= 0 ? 1 : 0;
-          if (op === ">=") return c >= 0 ? 1 : 0;
-          if (op === "!=") return c !== 0 ? 1 : 0;
-          return c === 0 ? 1 : 0;
-        }
-        return left;
-      }
-      function parseAdd() {
-        var val = parseMul();
-        while (peek() === "+" || peek() === "-") {
-          var op = next(), r = parseMul();
-          if (op === "+") val = (isStr(val) || isStr(r)) ? toTxt(val) + toTxt(r) : val + r;
-          else val = toNum(val) - toNum(r);
-        }
-        return val;
-      }
-      function parseMul() {
-        var val = parseFactor();
-        while (peek() === "*" || peek() === "/" || peek() === "%") {
-          var op = next(), r = toNum(parseFactor()), l = toNum(val);
-          if (op === "*") val = l * r;
-          else if (op === "/") val = r === 0 ? 0 : l / r;
-          else val = r === 0 ? 0 : l % r;
-        }
-        return val;
-      }
-      function parseFactor() {
-        var t = next();
-        if (t === undefined) return 0;
-        if (t === "(") {
-          var v = parseComparison();
-          if (peek() === ")") next();
-          return v;
-        }
-        if (t === "-") return -toNum(parseFactor());
-        if (t.charAt(0) === '"') return t.slice(1, -1);
-        if (/^\d/.test(t)) return parseFloat(t);
-        var key = t.toUpperCase();
-        return Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : 0;
-      }
-      return parseComparison();
+      pT = tokenize(expr); pI = 0; pV = vars;
+      var v = pCmp();
+      pV = null;
+      return v;
     },
 
     run: function (source) {
@@ -874,9 +1011,12 @@
         return { ok: false, error: msg, output: output, vars: vars, grid: withGrid ? self._renderGrid(grid, tx, ty) : "" };
       }
 
+      /* trimmed and upper-cased once; the jump table pairs each REPEAT with its END */
+      var raws = new Array(lines.length), uppers = new Array(lines.length), plans = new Array(lines.length);
       var stack = [], jumps = {};
       for (var i = 0; i < lines.length; i++) {
-        var s = lines[i].replace(/^\s+|\s+$/g, "").toUpperCase();
+        raws[i] = trimBoth(lines[i]);
+        var s = uppers[i] = raws[i].toUpperCase();
         if (s.indexOf("REPEAT ") === 0) {
           stack.push(i);
         } else if (s === "END") {
@@ -890,49 +1030,56 @@
       var loopCounters = {}, pc = 0, steps = 0, MAX_STEPS = 500;
       while (pc < lines.length) {
         if (++steps > MAX_STEPS) return fail("Stopped after 500 steps (loop limit)", true);
-        var raw = lines[pc].replace(/^\s+|\s+$/g, "");
-        if (!raw || raw.charAt(0) === "#") { pc++; continue; }
-        var upper = raw.toUpperCase();
-
-        if (upper.indexOf("IF ") === 0) {
-          var thenIdx = upper.indexOf(" THEN ");
-          if (thenIdx < 0) return fail("Line " + (pc + 1) + ": IF needs THEN");
-          if (!isTrue(this.evalExpr(raw.slice(3, thenIdx), vars))) { pc++; continue; }
-          raw = raw.slice(thenIdx + 6).replace(/^\s+|\s+$/g, "");
-          upper = raw.toUpperCase();
+        var plan = plans[pc];
+        if (plan === undefined) {
+          var raw = raws[pc];
+          if (!raw || raw.charAt(0) === "#") plan = { op: "SKIP" };
+          else {
+            var upper = uppers[pc];
+            if (upper.indexOf("IF ") === 0) {
+              var thenIdx = upper.indexOf(" THEN ");
+              if (thenIdx < 0) plan = { op: "ERR", msg: "Line " + (pc + 1) + ": IF needs THEN" };
+              else {
+                var act = trimBoth(raw.slice(thenIdx + 6));
+                plan = { op: "IF", cond: raw.slice(3, thenIdx), act: planCommand(act, act.toUpperCase(), pc + 1) };
+              }
+            } else plan = planCommand(raw, upper, pc + 1);
+          }
+          plans[pc] = plan;
+        }
+        if (plan.op === "SKIP") { pc++; continue; }
+        if (plan.op === "IF") {
+          if (!isTrue(this.evalExpr(plan.cond, vars))) { pc++; continue; }
+          plan = plan.act;
         }
 
-        if (upper.indexOf("LET ") === 0) {
-          var eq = raw.indexOf("=");
-          if (eq < 0) return fail("Line " + (pc + 1) + ": LET needs '='");
-          var vname = raw.slice(4, eq).replace(/^\s+|\s+$/g, "");
-          if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(vname)) return fail("Line " + (pc + 1) + ": bad variable name '" + vname + "'");
-          vars[vname.toUpperCase()] = this.evalExpr(raw.slice(eq + 1), vars);
-        } else if (upper.indexOf("PRINT ") === 0) {
-          output.push(toTxt(this.evalExpr(raw.slice(6), vars)));
-        } else if (upper === "CLEAR") {
+        var op = plan.op;
+        if (op === "ERR") {
+          return fail(plan.msg);
+        } else if (op === "LET") {
+          vars[plan.name] = this.evalExpr(plan.expr, vars);
+        } else if (op === "PRINT") {
+          output.push(toTxt(this.evalExpr(plan.expr, vars)));
+        } else if (op === "CLEAR") {
           for (r = 0; r < gridSize; r++) for (c = 0; c < gridSize; c++) grid[r][c] = ".";
           tx = 4; ty = 4; dir = 0; grid[ty][tx] = "#";
-        } else if (upper.indexOf("MOVE ") === 0) {
-          var dist = Math.max(0, Math.min(20, Math.floor(toNum(this.evalExpr(raw.slice(5), vars)))));
+        } else if (op === "MOVE") {
+          var dist = Math.max(0, Math.min(20, Math.floor(toNum(this.evalExpr(plan.expr, vars)))));
           for (var m = 0; m < dist; m++) {
             tx = Math.max(0, Math.min(gridSize - 1, tx + dx[dir]));
             ty = Math.max(0, Math.min(gridSize - 1, ty + dy[dir]));
             grid[ty][tx] = "#";
           }
-        } else if (upper.indexOf("TURN ") === 0) {
-          var turnArg = upper.slice(5).replace(/^\s+|\s+$/g, "");
-          dir = (turnArg === "LEFT") ? (dir + 3) % 4 : (dir + 1) % 4;
-        } else if (upper.indexOf("REPEAT ") === 0) {
-          var cnt = Math.max(0, Math.floor(toNum(this.evalExpr(raw.slice(7), vars))));
+        } else if (op === "TURN") {
+          dir = plan.left ? (dir + 3) % 4 : (dir + 1) % 4;
+        } else if (op === "REPEAT") {
+          var cnt = Math.max(0, Math.floor(toNum(this.evalExpr(plan.expr, vars))));
           if (cnt === 0) { pc = jumps[pc] + 1; continue; }
           loopCounters[pc] = cnt;
-        } else if (upper === "END") {
+        } else if (op === "END") {
           var head = jumps[pc];
           loopCounters[head] -= 1;
           if (loopCounters[head] > 0) { pc = head + 1; continue; }
-        } else {
-          return fail("Line " + (pc + 1) + ": Unknown command '" + raw + "'");
         }
         pc++;
       }
@@ -1160,14 +1307,16 @@
       transcript.push("Checker: REJECTED - no matching source in persistent library.");
       return { ok: false, transcript: transcript, verifiedCitations: [] };
     }
-    var combined = "", cites = [], i;
+    /* A number of the draft must be a whole number of the sources: 100 is not backed by 1000. */
+    var allowed = Object.create(null), cites = [], i, m;
     for (i = 0; i < sourceHits.length; i++) {
-      combined += " " + sourceHits[i].fact.toLowerCase() + " " + (sourceHits[i].ex || "").toLowerCase();
+      var srcNums = (sourceHits[i].fact + " " + (sourceHits[i].ex || "")).match(/\d+(?:\.\d+)?/g) || [];
+      for (m = 0; m < srcNums.length; m++) allowed[srcNums[m]] = true;
       cites.push("[" + sourceHits[i].sourceId + ": " + sourceHits[i].topic + "]");
     }
     var nums = draftText.replace(/\[[^\]]*\]/g, " ").match(/\d+(?:\.\d+)?/g) || [];
     for (i = 0; i < nums.length; i++) {
-      if (combined.indexOf(nums[i]) < 0) {
+      if (!allowed[nums[i]]) {
         transcript.push("Checker: WARNING - number '" + nums[i] + "' not backed by source; clamping to source text.");
         return { ok: false, transcript: transcript, verifiedCitations: cites };
       }

@@ -1779,6 +1779,23 @@ static void evl_lower_into(EvlStr *dst, const char *s)
   for (; *s; s++) evl_str_addc(dst, tolower((unsigned char)*s));
 }
 
+/* 1 when num (digits, then an optional point and digits) is one of the numbers of hay as a WHOLE
+   number: "100" is not in "1000", "5" is not in "0.5". The same rule as the JavaScript edition. */
+int evl_number_in(const char *hay, const char *num)
+{
+  const char *d = hay;
+  size_t n = strlen(num);
+  while (*d) {
+    if (isdigit((unsigned char)*d)) {
+      const char *s = d;
+      while (isdigit((unsigned char)*d)) d++;
+      if (*d == '.' && isdigit((unsigned char)d[1])) { d++; while (isdigit((unsigned char)*d)) d++; }
+      if ((size_t)(d - s) == n && strncmp(s, num, n) == 0) return 1;
+    } else d++;
+  }
+  return 0;
+}
+
 void evl_swarm_ask(EvlMulti *m, const EvlProfile *p, EvlModel *model, const char *question, const char *shelves,
                    EvlStr *answer, EvlStr *sources, EvlList *chat)
 {
@@ -1870,7 +1887,7 @@ void evl_swarm_ask(EvlMulti *m, const EvlProfile *p, EvlModel *model, const char
         while (isdigit((unsigned char)*d)) d++;
         if (*d == '.' && isdigit((unsigned char)d[1])) { d++; while (isdigit((unsigned char)*d)) d++; }
         num = evl_strndup(s, (size_t)(d - s));
-        if (!strstr(combined.s, num)) {
+        if (!evl_number_in(combined.s, num)) {
           evl_str_clear(&line);
           evl_str_add(&line, "Checker: WARNING - number '"); evl_str_add(&line, num);
           evl_str_add(&line, "' not backed by source; clamping to source text.");

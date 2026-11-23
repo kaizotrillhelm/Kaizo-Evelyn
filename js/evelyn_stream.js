@@ -100,17 +100,21 @@
   /* ======================================================================
      2. ZERO-COPY TABLES AND LAYERS
      ====================================================================== */
+  /* A table is ONE Int8Array view over the file bytes (no weight byte is copied and no view is made
+     per row). A row starts at r * stride; its first 4 bytes are the row's scale, which is also read
+     into the scale array, and the weights follow. rowView(t, r) makes a view of one row when a
+     caller wants one. */
   function readTableView(buf, o, rows, cols) {
-    var view = new DataView(buf);
-    var scale = new Float32Array(rows), rowViews = new Array(rows);
+    var view = new DataView(buf), stride = 4 + cols, start = o.p;
+    var scale = new Float32Array(rows);
     for (var r = 0; r < rows; r++) {
-      scale[r] = view.getFloat32(o.p, true);
-      o.p += 4;
-      rowViews[r] = new Int8Array(buf, o.p, cols);   /* a view into the source: no weight byte is copied */
-      o.p += cols;
+      scale[r] = view.getFloat32(start + r * stride, true);
     }
-    return { scale: scale, rowViews: rowViews, rows: rows, cols: cols };
+    o.p = start + rows * stride;
+    return { scale: scale, bytes: new Int8Array(buf, start, rows * stride), stride: stride, rows: rows, cols: cols };
   }
+
+  function rowView(t, r) { return new Int8Array(t.bytes.buffer, t.bytes.byteOffset + r * t.stride + 4, t.cols); }
 
   function readGains(buf, o, n) {
     var view = new DataView(buf), g = new Float32Array(n);
@@ -171,13 +175,21 @@
     return this.layers[l];
   };
 
+  /* The bytes of a slice source are one buffer that stays in memory, so a layer is checked against its
+     CRC32 the first time it is used and not again (a layer is parsed once for every letter written,
+     and the check reads all of it). Set verifyEvery to true to check at every use. */
   function SliceStreamSource(buf, meta, manifest) {
     this.mode = "slice";
     this.buf = buf; this.meta = meta; this.manifest = manifest || null;
+    this.verifyEvery = false;
+    this.verified = [];
   }
   SliceStreamSource.prototype.layerAt = function (l, stats) {
     var lr = this.meta.layers[l];
-    var layer = parseLayerSlice(this.buf, lr.offset, this.meta.D, this.meta.HID, this.manifest ? this.manifest.layers[l].crc32 : null);
+    var crc = null;
+    if (this.manifest && (this.verifyEvery || !this.verified[l])) crc = this.manifest.layers[l].crc32;
+    var layer = parseLayerSlice(this.buf, lr.offset, this.meta.D, this.meta.HID, crc);
+    if (crc !== null) this.verified[l] = true;
     if (stats) { stats.layersLoaded++; stats.bytesRead += lr.length; }
     return layer;
   };
@@ -289,10 +301,25 @@
   Tiny2StreamModel.prototype.layerAt = function (l) { return this.source.layerAt(l, this.stats); };
 
   Tiny2StreamModel.prototype._matvec = function (t, x, y) {
-    var rows = t.rows, cols = t.cols, rv = t.rowViews, sc = t.scale;
+    var rows = t.rows, cols = t.cols, stride = t.stride, w = t.bytes, sc = t.scale;
     for (var r = 0; r < rows; r++) {
-      var w = rv[r], s = 0.0;
-      for (var c = 0; c < cols; c++) s += w[c] * x[c];
+      var s = 0.0, base = r * stride + 4;
+      for (var c = 0; c < cols; c++) s += w[base + c] * x[c];
+      y[r] = s * sc[r];
+    }
+  };
+
+  /* For the second feed-forward matrix (its input has just been through the ReLU): only the
+     columns that are not zero are multiplied. The result equals _matvec bit for bit. */
+  Tiny2StreamModel.prototype._matvecSparse = function (t, x, y) {
+    var rows = t.rows, cols = t.cols, stride = t.stride, w = t.bytes, sc = t.scale, c, r, k = 0;
+    if (!this._nz || this._nz.length < cols) { this._nz = new Int32Array(cols); this._nzv = new Float32Array(cols); }
+    var idx = this._nz, val = this._nzv;
+    for (c = 0; c < cols; c++) if (x[c] !== 0) { idx[k] = c; val[k] = x[c]; k++; }
+    if (k > (cols >> 1)) { this._matvec(t, x, y); return; }
+    for (r = 0; r < rows; r++) {
+      var s = 0.0, base = r * stride + 4;
+      for (c = 0; c < k; c++) s += w[base + idx[c]] * val[c];
       y[r] = s * sc[r];
     }
   };
@@ -309,7 +336,7 @@
     for (i = 0; i < D; i++) { v = src[i] < 0 ? -src[i] : src[i]; if (v > big) big = v; }
     if (big < 1e-20) big = 1e-20;
     var k = 127.0 / big;
-    for (i = 0; i < D; i++) { v = src[i] * k; dst[off + i] = v < 0 ? Math.ceil(v - 0.5) : Math.floor(v + 0.5); }
+    for (i = 0; i < D; i++) { v = src[i] * k; dst[off + i] = (v < 0 ? v - 0.5 : v + 0.5) | 0; }
     return big / 127.0;
   };
 
@@ -352,14 +379,15 @@
     this._norm(x, layer.g2, this.bh);
     this._matvec(layer.f1, this.bh, this.bm);
     for (i = 0; i < HID; i++) if (this.bm[i] < 0) this.bm[i] = 0;
-    this._matvec(layer.f2, this.bm, this.bt);
+    this._matvecSparse(layer.f2, this.bm, this.bt);
     for (i = 0; i < D; i++) x[i] += this.bt[i];
   };
 
   Tiny2StreamModel.prototype._embedToken = function (tok, p, dst) {
-    var D = this.meta.D, ew = this.emb.rowViews[tok], pw = this.pos.rowViews[p];
+    var D = this.meta.D, eb = this.emb.bytes, pb = this.pos.bytes;
+    var eo = tok * this.emb.stride + 4, po = p * this.pos.stride + 4;
     var es = this.emb.scale[tok], ps = this.pos.scale[p];
-    for (var i = 0; i < D; i++) dst[i] = ew[i] * es + pw[i] * ps;
+    for (var i = 0; i < D; i++) dst[i] = eb[eo + i] * es + pb[po + i] * ps;
   };
 
   Tiny2StreamModel.prototype._greedyPick = function () {
@@ -522,6 +550,7 @@
     buildSovereignManifest: buildSovereignManifest,
     splitTny2Shards: splitTny2Shards,
     parseLayerSlice: parseLayerSlice,
+    rowView: rowView,
     Tiny2StreamModel: Tiny2StreamModel,
     OffsetShelfStore: OffsetShelfStore
   };

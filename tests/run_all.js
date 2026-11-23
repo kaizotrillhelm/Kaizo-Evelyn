@@ -59,6 +59,12 @@ step("BASIC names avoid keywords", function () { return node("tools/check_bas_na
 step("no stray control characters", controlCharScan);
 step("JavaScript unit tests", function () { return node("js/test/test_evelyn.js"); });
 step("JavaScript layer-streaming tests", function () { return node("js/test/evelyn_stream_tests.js"); });
+step("JavaScript Inkling agent, cascade, copilot and TNY3 header tests", function () { return node("js/test/evelyn_inkling_tests.js"); });
+step("JavaScript speed-work parity tests", function () { return node("js/test/evelyn_fast_tests.js"); });
+step("benchmark suite runs and agrees with the old code (quick)", function () {
+  var r = run(NODE, [path.join(ROOT, "tests", "bench_evelyn.js"), "--quick", "--only=1,2,4,5"]);
+  return { status: r.code === 0 ? "PASS" : "FAIL", note: "sections 1, 2, 4, 5", detail: r.code === 0 ? "" : r.out.slice(-3000) };
+});
 step("BASIC interpreter tests", function () { return node("tests/test_qbi.js"); });
 
 var cBuilt = fs.existsSync(path.join(ROOT, "c", "out", "evelyn_test" + EXE));

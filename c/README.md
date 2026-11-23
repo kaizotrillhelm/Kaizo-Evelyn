@@ -5,7 +5,7 @@ One library (`evelyn.c`, `evelyn.h`) and three programs on top of it. Only the C
 ```powershell
 build.bat                 # Visual Studio compiler; writes out\evelyn.exe, out\evelyn_proto.exe, out\evelyn_test.exe
 make                      # gcc (-std=c89 -pedantic -ffp-contract=off); same three programs in out/
-out\evelyn_test.exe       # 212 unit tests
+out\evelyn_test.exe       # 222 unit tests
 out\evelyn.exe [TINY.BIN] [book.txt]
 ```
 

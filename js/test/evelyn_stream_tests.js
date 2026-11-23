@@ -192,8 +192,9 @@
   test("zero-copy: a weight row is a view into the source buffer", function (done) {
     var buf = makeTny2(24, 2, 2, 48, 11), meta = S.parseHeaderAndOffsets(buf);
     var layer = S.parseLayerSlice(buf, meta.layers[0].offset, 24, 48, null);
-    var row = layer.wq.rowViews[3];
-    assert(row.buffer === buf, "the row must share the file's ArrayBuffer");
+    assert(layer.wq.bytes.buffer === buf, "the whole table is one view over the file's ArrayBuffer");
+    var row = S.rowView(layer.wq, 3);
+    assert(row.buffer === buf && row.length === 24, "a row view shares the file's ArrayBuffer");
     var before = row[0];
     new Int8Array(buf)[row.byteOffset] = before === 5 ? 6 : 5;
     assert(row[0] !== before, "writing the buffer must show through the view");

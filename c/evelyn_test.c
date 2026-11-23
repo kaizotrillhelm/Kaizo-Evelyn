@@ -448,6 +448,21 @@ static void test_adventure_and_tutor(void)
   evl_str_free(&o); evl_str_free(&t); evl_pm_free(&pm); evl_lib_free(&lib);
 }
 
+static void test_number_checker(void)
+{
+  /* a number of a draft must be a whole number of the sources */
+  CHECK(evl_number_in("mix 6 teaspoons in 1000 ml", "1000") == 1);
+  CHECK(evl_number_in("mix 6 teaspoons in 1000 ml", "100") == 0);
+  CHECK(evl_number_in("mix 6 teaspoons in 1000 ml", "10") == 0);
+  CHECK(evl_number_in("mix 6 teaspoons in 1000 ml", "6") == 1);
+  CHECK(evl_number_in("half a teaspoon is 0.5 of one", "0.5") == 1);
+  CHECK(evl_number_in("half a teaspoon is 0.5 of one", "5") == 0);
+  CHECK(evl_number_in("a 3-4-5 rope", "4") == 1);
+  CHECK(evl_number_in("version 12.25.", "12.25") == 1);
+  CHECK(evl_number_in("version 12.25.", "12") == 0);
+  CHECK(evl_number_in("", "1") == 0);
+}
+
 static void test_multi(void)
 {
   EvlMulti m; EvlProfile pm; EvlLib *s;
@@ -506,6 +521,7 @@ int main(void)
   test_audio();
   test_sandbox();
   test_adventure_and_tutor();
+  test_number_checker();
   test_multi();
   test_net();
   printf("evelyn c: %d passed, %d failed\n", passed, failed);

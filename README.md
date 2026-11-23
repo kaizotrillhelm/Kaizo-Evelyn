@@ -88,15 +88,63 @@ var a = m.think("capital of estonia");                      // { text, stats }
 ```
 
 - **`layerAt(l)`** returns a layer from one of three sources: *resident* (all layers parsed up front), *slice* (parsed from the file buffer when asked, then dropped) or *prefetch* (an asynchronous fetcher such as IndexedDB or a file read; layer l+1 is asked for while layer l computes). `thinkAsync(question, maxNew, callback)` uses the prefetch source; `splitTny2Shards(buffer)` cuts a file into a base part, one shard per layer and the final gains, as they would be stored separately.
-- **Zero-copy views.** A weight row is an `Int8Array` view into the source buffer; no weight byte is copied. (Each view is a small object, so a JavaScript engine still pays for the objects; this was not measured.)
+- **Zero-copy views.** A whole weight table is one `Int8Array` view into the source buffer (a row starts every `4 + cols` bytes, after its 4-byte scale); no weight byte is copied and no view is made per row. Before 2026-11-23 each row had its own view object, 380 or so per layer, made again every time a layer was loaded. `rowView(table, r)` makes a view of one row when a caller wants one.
 - **Layer-order prefill.** The whole question goes through layer 0, then layer 1, and so on, so a layer is loaded once for the question and once per letter written, instead of once per letter of the question. A 29-letter question on 2 layers costs 2 layer loads, not 58.
-- **SovereignManifest.** CRC32 for the header, the token and position tables, every layer and the final gains. A flipped bit or a truncated layer is refused before it is used; the test flips one bit and checks that it is caught.
+- **SovereignManifest.** CRC32 for the header, the token and position tables, every layer and the final gains. A flipped bit or a truncated layer is refused before it is used; the test flips one bit and checks that it is caught. In slice mode the file buffer stays in memory, so a layer is checked the first time it is used and not at every letter (the check reads all 90 KB of the layer, and a layer is read once per letter written). `model.source.verifyEvery = true` brings back the check at every use; a layer that arrives from a fetcher (prefetch mode) is always checked.
 - **OffsetShelfStore.** The search index stays in memory and the full text of each entry stays in a blob (or a file) and is read by byte offset, with a CRC32 check, only when an entry is chosen.
 - **Same answer.** The streamed text and every byte of the key and value caches equal `Evelyn.Tiny2Model` and the resident mode (`js/test/evelyn_stream_tests.js`, 10 checks, including the real `TINY.BIN` shape of 381,808 bytes).
 
 **What it saves, honestly.** For the real shape (width 96, 4 layers) one layer is 89,728 bytes. Holding the whole file plus the caches takes 484,208 bytes; with layers coming from a fetcher, one layer in flight takes 215,024 bytes and two (read-ahead) 304,752. Streaming from a file buffer that is already whole in memory ("slice") saves no memory; it counts and checks each layer. The memory saving comes from a shard source. On this PC, with random weights, a 12-letter answer loaded 52 layers (4.4 MB of layer data checked) at about 400 to 500 letters a second. No real `TINY.BIN`, slow disk or old browser was tried, so the benefit on the machines it is meant for is arithmetic, not a measurement.
 
 Run it: `node js/test/evelyn_stream_tests.js` (also a step of `node tests/run_all.js`).
+
+## Speed work and benchmarks (2026-11-23)
+
+A review of the code (an AI Studio chat, see `CREDITS.md`) proposed a benchmark suite and a list of speed-ups. Each proposal was written again here, compared with the code as it was (`js/test/legacy/` keeps the two files from before) and measured. What was kept, what was left out and why:
+
+```powershell
+node tests\bench_evelyn.js                 # all five sections, old code against new code and against outside baselines
+node tests\bench_evelyn.js --quick --only=2,3
+node --jitless tests\bench_evelyn.js --quick --only=3   # the engine with the JIT off, as an old browser runs it
+node js\test\evelyn_fast_tests.js          # 33 parity tests
+```
+
+| Part | What changed | Result, Node 25 on this PC | Output |
+| --- | --- | --- | --- |
+| LZW compressor | a chained hash of 4096 buckets (8 KB, shifts and xors, no multiply) instead of a dictionary keyed by strings; scratch tables made once and cleared by walking the buckets that were used | one 137-character fact 12.8 times as fast, 48 KB of prose 6.8 times, 20 KB of noise 7.4 times | the same bytes, also after the dictionary is full |
+| Base64 | a 128-byte lookup table for decoding (the old code searched the 64 letters for every character), character codes joined in blocks for encoding | decode 10.1 times as fast, encode 3.4 times | the same text as Node's `Buffer` |
+| LZW decompressor | the codes are read from the bytes in one pass | 1.2 times as fast | the same text and the same errors |
+| Coding lab | each line is decoded the first time it runs and kept; the words of an expression are cut once and cached; the parser makes no closures | a 40-pass loop with the turtle 4.3 times as fast; a one-line program 1.05 times | the same result, error text, step count and grid on 6000 generated programs, good and bad |
+| Library search | the lower-case topic is kept beside the record, scores sit in a typed array, the best 1 to 8 are picked without sorting everything | 64 entries 1.6 times, 960 entries 1.8 times, 4000 entries 2.0 times as fast | the same hits in the same order |
+| Number checker (JavaScript and C) | a number of the draft must be a whole number of the sources | a draft saying 100 against a source that says 1000 is refused (it was accepted) | **changed on purpose**; the C unit test `evl_number_in` and the conformance run cover it |
+| Layer streaming, slice mode | one view per table; a layer's CRC32 once per buffer | 2.6 times as fast with a manifest | the same text and cache bytes |
+| Second feed-forward product | the columns that are zero after the ReLU are skipped when over half are | 1.2 times at half zeros and 3.0 times at four fifths on a JIT, 1.7 to 3.9 times with no JIT | the same bits |
+
+Left out, because the measurement said no. **Unrolling the product loop by four** was suggested for every matrix: it was 13% slower on a current JIT and 10% faster in an interpreter, so the plain loop stays. **The integer engine** (`js/evelyn_potato.js`: Int8 activations, 32-bit integer sums, an exponential table, skipped attention positions) is optional and off. On a current JIT it runs at 0.83 to 0.88 times the speed of the float engine; with the JIT off it runs 1.4 times as fast. It also changes the scores in the third or fourth digit, so the C and BASIC editions, which are checked against the JavaScript scores, cannot match it. Its second level, the exponential table and the attention work, added nothing measurable over its first. The module reports how far the answers move (`compare`), measured on random weights: the cosine of the scores is 0.9998, the best letter is the same 98 to 99.6% of the time and a whole 30-letter answer is the same in 1 to 2 of 10 prompts. Random weights make the scores nearly flat, so a trained `TINY.BIN` has to be measured the same way before the module is used for anything.
+
+Not measured: a real old machine, a real old browser, a trained `TINY.BIN`, the C edition's speed (it was not changed except for the number checker). The statement that the changes help a 1995 computer is therefore a reading of the interpreter-only run and not a result.
+
+## Working with a local Inkling (JavaScript only)
+
+Evelyn can stand in front of a language model that runs on the same machine and speaks the OpenAI chat format, such as llama-server with the Inkling 2 Mini GGUF. The four files below came from a design written in an AI Studio chat (see `CREDITS.md`) and were changed where reading the code showed a fault.
+
+| File | What it does |
+| --- | --- |
+| `js/evelyn_inkling_agent.js` | `EvelynInklingAgent.ask(question, cb)`: a sum of two whole numbers is answered by `CodeSandbox` with no model call; otherwise the question is searched in an `OffsetShelfStore` (only the matching byte slices are read, each CRC32 checked), the model is asked with effort `low` when excerpts were found and `medium` when none were, and every number of the draft must be a whole number of the excerpts or of the question. A draft that fails is sent back once with the list of numbers that are missing; if the second draft still fails, the answer is the shelf text. `InklingClient` is the HTTP client. |
+| `js/evelyn_cascade.js` | `KV21SubagentPool` primes a role ("ROUTE:", "KEYWORDS:") on a `Tiny2Model` once and keeps its cache as a KV21 snapshot; switching roles is one `importKVCache`. `thinkWithMargin` reads the gap between the best and second best letter score of each step. `TieredEvelynOrchestrator` uses a confident expander to widen the shelf search, a confident router to pick the effort (an unsure router gets `medium`), and calls the model only when no shelf answer is wanted. |
+| `js/evelyn_gguf_copilot.js` | `EvelynInklingCopilot` drives llama-server: a GBNF grammar built from the shelf ids that were found (`buildGroundedGrammar`), a streamed generation that cuts a repeating stretch (`loopDetected`) and reads ahead a shelf the model names while it thinks, and `checkpoint` / `rewind` of a server slot. |
+| `js/evelyn_tny3.js` | The `TNY3` header: vocabulary, context length, width, layers, heads, feed-forward size, a rotary-position flag and a count of assistant outputs, in 24 bytes, with a header writer and a parameter estimate. Only the header. The weight layout, rotary attention and the output heads are not written, and `Tiny2Model` refuses a `TNY3` file. |
+
+```js
+var A = require("./evelyn_inkling_agent.js");
+var client = new A.InklingClient({ port: 8080, maxTokens: 1500 });
+var agent = new A.EvelynInklingAgent(offsetShelfStore, profileManager, client);
+agent.ask("Where is Frostgate?", function (err, r) { /* r.answer, r.path, r.verified, r.inklingCalled */ });
+```
+
+**Tested.** `node js/test/evelyn_inkling_tests.js` (37 checks, a step of `node tests/run_all.js`) runs all of it against a small mock server in the test file that plays llama-server: the request bodies, the effort field, the repair pass, HTTP errors and a closed port (each reported once), the KV21 switch giving the same letters and margins every time, the margin equal to a hand-written computation, the routing rules, the grammar's rules all defined, a repeating stream cut and the server seeing the client leave, ordinary JSON output not cut, a shelf read ahead, slot calls, and the `TNY3` header round trip and refusals. `node js/test/evelyn_inkling_live.js --port <port>` is the same set of questions put to a real server; it prints what the server did with the effort field, a grammar and the slot calls.
+
+**Not measured.** No run against the real Inkling GGUF has been made yet (the live test is written and waits for a server). The chat claimed that the pairing makes answers faster and more accurate, that 40 to 70 percent of queries can stop at the small tiers, that a continuous effort from 0.0 to 0.99 cuts tokens by 2 to 5 times, and that a larger context and a 4,096-entry vocabulary help the assistant. None of these was measured. The small model here is the `TNY2` engine with random test weights (no trained `TINY.BIN` exists), so what a trained router or expander would decide is open. The loop cut was changed from the design: it needs the same 48 letters to have appeared twice before, because a code listing or a JSON list can repeat a line once; `loopRepeats: 1` gives the original rule.
 
 ## Reaching back: how old a machine can run it
 
@@ -118,7 +166,7 @@ What would extend the reach: a C build of the layer streaming for DOS machines (
 node tests\run_all.js
 ```
 
-This runs, in order: generated files are current, BASIC names avoid keywords, no stray control characters, the JavaScript unit tests (48), the JavaScript layer-streaming tests (10), the BASIC interpreter tests (49), the C build, the C unit tests (212), the cross-edition conformance run, and the command line programs for all three (24 checks).
+This runs, in order: generated files are current, BASIC names avoid keywords, no stray control characters, the JavaScript unit tests (48), the JavaScript layer-streaming tests (10), the speed-work parity tests (33), a quick run of the benchmark suite (it fails when the new code differs from the old), the BASIC interpreter tests (49), the C build, the C unit tests (222), the cross-edition conformance run, and the command line programs for all three (24 checks).
 
 **Conformance.** `tests/conformance.txt` is one script of 228 commands in six sections: core (180), kv (12), sampling (11), swarm (11), net (11) and full (3). Each edition has a small driver (`js/evelyn_proto.js`, `c/evelyn_proto.c`, `basic/evelyn_proto.bas`) that reads the script and prints one result line per command. `tests/run_conformance.js` runs the script through every edition and compares the lines with the JavaScript output. Score lines may differ in the sixth decimal; every other line must be identical. It also compares the files the editions write (`LIBRARY.EVL`, `USER.CFG`, `KV21` caches) byte for byte, and feeds each edition the files the JavaScript edition wrote. The neural engine is checked on generated models, including one with the real `TINY.BIN` shape (JavaScript and C).
 
@@ -162,11 +210,11 @@ Evelyn is based on Tiny-2.1's idea of a small language model that answers one le
 ## Folders
 
 ```
-js/       evelyn_core.js  evelyn_stream.js  evelyn_cli.js  evelyn_proto.js  index.html  test/test_evelyn.js  test/evelyn_stream_tests.js
+js/       evelyn_core.js  evelyn_stream.js  evelyn_potato.js  evelyn_cli.js  evelyn_proto.js  index.html  test/test_evelyn.js  test/evelyn_stream_tests.js  test/evelyn_fast_tests.js  test/legacy/
 c/        evelyn.h  evelyn.c  evelyn_data.h  evelyn_cli.c  evelyn_proto.c  evelyn_test.c  build.bat  Makefile
 basic/    evelyn_core.bi  evelyn_data.bi  evelyn_io.bi  evelyn_decl.bi  evelyn.bas  evelyn_proto.bas  build.bat  build.sh
 tools/    make_test_model.js  gen_data.js  gen_decl.js  check_bas_names.js  bas_keywords.json
-tests/    run_all.js  run_conformance.js  conformance.txt  qbi.js  test_qbi.js  test_clis.js
+tests/    run_all.js  bench_evelyn.js  run_conformance.js  conformance.txt  qbi.js  test_qbi.js  test_clis.js
 ```
 
 `evelyn_data.h` and `evelyn_data.bi` are generated from `js/evelyn_core.js` by `node tools\gen_data.js`, so the starter facts, rooms and lessons exist once. `evelyn_decl.bi` is generated by `node tools\gen_decl.js`. After changing a fact, a room or a procedure header, run both; `run_all.js` fails when they are out of date.

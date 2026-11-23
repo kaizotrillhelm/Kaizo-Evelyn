@@ -154,6 +154,7 @@ typedef struct { EvlShelf *shelf; int n; } EvlMulti;
 void evl_multi_init(EvlMulti *m);
 void evl_multi_free(EvlMulti *m);
 EvlLib *evl_multi_shelf(EvlMulti *m, const char *name);                    /* finds or creates */
+int evl_number_in(const char *hay, const char *num);
 void evl_swarm_ask(EvlMulti *m, const EvlProfile *p, EvlModel *model, const char *question, const char *shelves,
                    EvlStr *answer, EvlStr *sources, EvlList *chat);
 
