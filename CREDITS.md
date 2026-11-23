@@ -4,7 +4,7 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 
 **How to read this file.** Links to papers are built from the id or the title in the research notes the code was written from; they were not each opened and checked, and the descriptions of what a paper says are the notes' descriptions. Where only a title is known the link is an arXiv search. Where no link could be given, none is invented.
 
-**Licence of Evelyn itself.** No licence has been chosen yet. Add a `LICENSE` file before publishing; until then nobody has permission to reuse the code.
+**Licence of Evelyn itself.** Evelyn's own code and documents are under the MIT licence (see `LICENSE`). That does not cover the works listed below: the downloaded reference texts and the ideas, projects and papers credited here keep their own licences. Evelyn is **not** a copy of any of them. In particular it contains no code, data or trained weights from Tiny-2.1: that repository's data licences (ODbL and CC BY-SA for three fact files and the trained network) do not carry over.
 
 ---
 

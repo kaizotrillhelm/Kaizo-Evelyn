@@ -176,4 +176,4 @@ The "Adaptive Learning Suite" export (`...-2236.md`, byte-identical to `-2228`) 
 
 **Reading library.** `python tools/fetch_reading_refs.py <folder>` fetches public-domain and freely readable texts (a Gutenberg book is accepted only when its own title header matches; a page that answers 403 or 429 is skipped, never worked around) and `node tools/build_shelves.js <folder>` turns them into shelves. What was fetched and what could not be is in `CREDITS.md` section 5b.
 
-Credits and licences of everything Evelyn builds on are in `CREDITS.md`. No licence has been chosen for Evelyn itself yet.
+Credits and licences of everything Evelyn builds on are in `CREDITS.md`. Evelyn is under the MIT licence (see `LICENSE`).
