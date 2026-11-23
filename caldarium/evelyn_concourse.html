@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EVELYN // NEON CONCOURSE, WORKER TNY2 & CARTRIDGE WORKSHOP</title>
+<title>EVELYN // CALDARIUM CONCOURSE, WORKER TNY2 & CARTRIDGE WORKSHOP</title>
 <style>
   :root {
     --bg:#04041c; --title:#141c58; --bar:#005078; --panel:#080a28;
@@ -44,7 +44,7 @@
 </head>
 <body>
 <div class="titlebar">
-  <div>&#9668;&#9658; <strong>E V E L Y N</strong> &middot; NEON CONCOURSE &middot; <span id="hdrMode">IDB + WORKER READY</span></div>
+  <div>&#9668;&#9658; <strong>E V E L Y N</strong> &middot; CALDARIUM CONCOURSE &middot; <span id="hdrMode">IDB + WORKER READY</span></div>
   <div><span style="color:var(--mint);font-weight:bold">&#9632; ONLINE</span> &middot; <span id="hdrProf">Learner 1 [M] XP:0</span> &middot; <span id="hdrTime">--:-- AM</span></div>
 </div>
 
@@ -233,7 +233,7 @@ let late = ghost + 1;</textarea>
     <span><b>F3</b> Voice <span id="stV" class="on">ROBOT</span></span> &nbsp;
     <span><b>F4</b> Creativity <span id="stC" class="on">0</span></span>
   </div>
-  <div id="stR">EVELYN NEON ENGINE</div>
+  <div id="stR">EVELYN CALDARIUM ENGINE</div>
 </div>
 
 <script src="evelyn_backend.js"></script>
@@ -612,7 +612,7 @@ let late = ghost + 1;</textarea>
   document.getElementById("xrStep").onclick = function () { ui.paused = true; document.getElementById("xrPause").textContent = "Resume Loop"; ui.stepOnce = true; };
   document.getElementById("xrSpeed").oninput = function (e) { ui.speed = parseFloat(e.target.value); document.getElementById("xrSpeedVal").textContent = ui.speed.toFixed(1) + "x"; };
 
-  document.getElementById("profSel").onchange = function (e) { profiles.curId = e.target.value; saveProfiles(); B.EchoWorker.pinPrefix("MODE:" + curP().mode + "|"); if (window.__neonRemount) window.__neonRemount(); };
+  document.getElementById("profSel").onchange = function (e) { profiles.curId = e.target.value; saveProfiles(); B.EchoWorker.pinPrefix("MODE:" + curP().mode + "|"); if (window.__caldariumRemount) window.__caldariumRemount(); };
   document.getElementById("modeSel").onchange = function (e) { curP().mode = e.target.value; saveProfiles(); B.EchoWorker.pinPrefix("MODE:" + curP().mode + "|"); };
   document.getElementById("chatGo").onclick = function () { var i = document.getElementById("chatIn"); askEcho(i.value); i.value = ""; };
   document.getElementById("chatIn").onkeydown = function (e) { if (e.key === "Enter") { askEcho(this.value); this.value = ""; } };
@@ -733,32 +733,32 @@ let late = ghost + 1;</textarea>
      reactive director, frontier memory, the charter gate and the Chum Loft (Echoes and DritchChums).
      Everything is built per learner profile and rebuilt when the profile changes.
      ========================================================================= */
-  var neon = { console: null, suiteHost: null, suiteCtrl: null, loftHost: null, loft: null, world: null, wired: false };
+  var caldarium = { console: null, suiteHost: null, suiteCtrl: null, loftHost: null, loft: null, world: null, wired: false };
 
   function mountSuite() {
     var A = window.EvelynArt, D = window.EvelynDoctor, S = window.EvelynSuiteUI, E = window.EvelynEvolution, VG = window.EvelynVoiceGuard, DR = window.EvelynDirector, K = window.EvelynChums;
-    if (!neon.wired) {
-      neon.wired = true;
+    if (!caldarium.wired) {
+      caldarium.wired = true;
       /* art: favicon, animated CRT portrait above the Neural Monitor */
       A.installFavicon();
       var portraitWrap = document.createElement("div");
       portraitWrap.style.marginBottom = "8px";
       var sec = document.querySelector(".box.sec");
       sec.insertBefore(portraitWrap, sec.children[1]);
-      neon.console = A.mountConsole(portraitWrap, 168);
+      caldarium.console = A.mountConsole(portraitWrap, 168);
       /* doctor: watchdogs and a repair pass over profiles and cartridges */
-      neon.console.setMood("fixing");
+      caldarium.console.setMood("fixing");
       D.Watchdog.attach({ timeoutMs: 3500 });
       D.heal({ profiles: profiles.map, cartridges: allCarts });
-      neon.console.setMood("idle");
+      caldarium.console.setMood("idle");
       /* voice guard on every reply and spoken string */
       VG.installHooks();
       /* host elements */
-      neon.suiteHost = document.createElement("div");
-      document.querySelector(".grid").children[0].appendChild(neon.suiteHost);
-      neon.loftHost = document.createElement("div");
-      document.querySelector(".grid").children[0].appendChild(neon.loftHost);
-      neon.world = DR.createWorldState();
+      caldarium.suiteHost = document.createElement("div");
+      document.querySelector(".grid").children[0].appendChild(caldarium.suiteHost);
+      caldarium.loftHost = document.createElement("div");
+      document.querySelector(".grid").children[0].appendChild(caldarium.loftHost);
+      caldarium.world = DR.createWorldState();
       /* sentinel: one background read-only scrub pass over the shelves, a slice every 30 seconds */
       var shelfScrubber = new window.EvelynSentinel.IncrementalScrubber({ batchSize: 12 });
       var scrubTimer = setInterval(function () {
@@ -768,9 +768,9 @@ let late = ghost + 1;</textarea>
       }, 30000);
       /* frontier: surprise memory, and a graph of every canon creature and home for two-step questions */
       var FR = window.EvelynFrontier;
-      var titansMem = new FR.TitansContinuumMemory(32);
+      var titansMem = new FR.ContinuumMemory(32);
       window.addEventListener("blur", function () { titansMem.sleepConsolidate(0.5); });
-      var hippoGraph = new FR.HippoGraphMemory();
+      var hippoGraph = new FR.GraphMemory();
       var creatures = window.EvelynCartridges.CREATURES;
       for (var ci = 0; ci < creatures.length; ci++) {
         var cr = creatures[ci];
@@ -779,7 +779,7 @@ let late = ghost + 1;</textarea>
         hippoGraph.addTriple(cr.name, "lives in", cr.home, "home_" + cr.id);
         for (var wi = 0; wi < cr.weak.length; wi++) hippoGraph.addTriple(cr.name, "weak to", cr.weak[wi], "weak_" + cr.id);
       }
-      neon.titans = titansMem; neon.hippo = hippoGraph;
+      caldarium.titans = titansMem; caldarium.hippo = hippoGraph;
       /* retro game X-Ray: a game file the learner picks is taken apart on this device, never uploaded */
       document.getElementById("retroFile").onchange = function (ev) {
         var file = ev.target.files[0];
@@ -794,7 +794,7 @@ let late = ghost + 1;</textarea>
         };
         rd.readAsArrayBuffer(file);
       };
-      B.EvelynDB.get("profiles", "world_state", function (saved) { if (saved) neon.world = DR.createWorldState(saved); });
+      B.EvelynDB.get("profiles", "world_state", function (saved) { if (saved) caldarium.world = DR.createWorldState(saved); });
       /* chat: focus detection feeds the evolving games, chum commands feed the loft, the charter gates every question */
       var origAsk = askEcho;
       askEcho = function (q) {
@@ -803,11 +803,11 @@ let late = ghost + 1;</textarea>
           var gate = window.EvelynCharter.guardMessage(text);
           if (!gate.allowed) { pushChat("<span style='color:var(--hot)'>[Evelyn] &raquo; " + String(gate.message || "I will not help with that. Let's find a safe way to do it.").replace(/</g, "&lt;") + "</span>"); return; }
         }
-        var multi = neon.hippo ? neon.hippo.queryMultiHop(text, 2) : { passages: [] };
-        if (multi.passages.length >= 2) neon.titans.observe(text, multi.passages[0].text + " " + multi.passages[1].text);
+        var multi = caldarium.hippo ? caldarium.hippo.queryMultiHop(text, 2) : { passages: [] };
+        if (multi.passages.length >= 2) caldarium.titans.observe(text, multi.passages[0].text + " " + multi.passages[1].text);
         var intent = E.parseFocusIntent(curP(), text);
         if (intent.matched.length) saveProfiles();
-        var chumRes = neon.loft ? neon.loft.parseChat(text) : null;
+        var chumRes = caldarium.loft ? caldarium.loft.parseChat(text) : null;
         if (chumRes && chumRes.ok) {
           pushChat("<span style='color:var(--cyan);font-weight:bold'>[Chum Loft] &raquo; </span><span style='color:var(--mint)'>" + chumRes.line.replace(/</g, "&lt;") + "</span>");
           return;
@@ -817,25 +817,25 @@ let late = ghost + 1;</textarea>
     }
     var prof = curP();
     /* suite hub */
-    neon.suiteHost.innerHTML = "";
-    neon.suiteCtrl = S.createController({ profile: prof, onSave: function () { saveProfiles(); }, onMonitor: function (a, c, l, msg) { setMon(a, c, l, msg); } });
-    neon.suiteCtrl.mountDOM(neon.suiteHost);
+    caldarium.suiteHost.innerHTML = "";
+    caldarium.suiteCtrl = S.createController({ profile: prof, onSave: function () { saveProfiles(); }, onMonitor: function (a, c, l, msg) { setMon(a, c, l, msg); } });
+    caldarium.suiteCtrl.mountDOM(caldarium.suiteHost);
     /* reactive director: open doors through buildReactiveCartridge and record the outcome */
-    var origOpen = neon.suiteCtrl.openCartridge, origSubmit = neon.suiteCtrl.submitAnswer;
-    neon.suiteCtrl.openCartridge = function (cartId, seed) {
+    var origOpen = caldarium.suiteCtrl.openCartridge, origSubmit = caldarium.suiteCtrl.submitAnswer;
+    caldarium.suiteCtrl.openCartridge = function (cartId, seed) {
       var base = window.EvelynSuite78.getById(cartId);
       if (!base) return origOpen(cartId, seed);
-      neon.suiteCtrl.state.activeCart = base;
-      neon.suiteCtrl.state.evolvedCart = DR.buildReactiveCartridge(base, curP(), neon.world, seed || Date.now());
-      neon.suiteCtrl.state.idx = 0;
-      neon.suiteCtrl.state.streak = 0;
-      return neon.suiteCtrl.state.evolvedCart;
+      caldarium.suiteCtrl.state.activeCart = base;
+      caldarium.suiteCtrl.state.evolvedCart = DR.buildReactiveCartridge(base, curP(), caldarium.world, seed || Date.now());
+      caldarium.suiteCtrl.state.idx = 0;
+      caldarium.suiteCtrl.state.streak = 0;
+      return caldarium.suiteCtrl.state.evolvedCart;
     };
-    neon.suiteCtrl.submitAnswer = function (ans) {
+    caldarium.suiteCtrl.submitAnswer = function (ans) {
       var res = origSubmit(ans);
       if (res.isSetPiece || !res.ok) {
-        var ev = DR.recordGameEvent(neon.world, curP(), neon.suiteCtrl.state.evolvedCart, { won: res.ok, streak: neon.suiteCtrl.state.streak });
-        B.EvelynDB.put("profiles", "world_state", neon.world);
+        var ev = DR.recordGameEvent(caldarium.world, curP(), caldarium.suiteCtrl.state.evolvedCart, { won: res.ok, streak: caldarium.suiteCtrl.state.streak });
+        B.EvelynDB.put("profiles", "world_state", caldarium.world);
         res.msg = VG.clean(res.msg) + "\n" + ev.directorLine;
       }
       return res;
@@ -844,11 +844,11 @@ let late = ghost + 1;</textarea>
     K.ensureState(prof);
     var tick = K.tickByClock(prof, Date.now());
     if (tick.released.length) setMon([0.6, 0.7, 0.6, 0.7], 0.9, null, tick.released[0].line);
-    neon.loftHost.innerHTML = "";
-    neon.loft = K.createLoft({ profile: prof, onSave: function () { saveProfiles(); }, onMonitor: function (a, c, l, msg) { setMon(a, c, l, msg); } });
-    neon.loft.mountDOM(neon.loftHost);
+    caldarium.loftHost.innerHTML = "";
+    caldarium.loft = K.createLoft({ profile: prof, onSave: function () { saveProfiles(); }, onMonitor: function (a, c, l, msg) { setMon(a, c, l, msg); } });
+    caldarium.loft.mountDOM(caldarium.loftHost);
   }
-  window.__neonRemount = mountSuite;
+  window.__caldariumRemount = mountSuite;
 
   /* Boot sequence: Open IndexedDB -> Restore Profiles, Shelves, Custom Cartridges */
   B.EvelynDB.open(function (hasIdb) {
@@ -868,7 +868,7 @@ let late = ghost + 1;</textarea>
     });
   });
 
-  pushChat("<span style='color:var(--dim)'>Evelyn NEON online. IndexedDB, gap-encoded shelves, Web Worker TNY2, X-Ray stepper, and Cartridge Validator are active.</span>");
+  pushChat("<span style='color:var(--dim)'>Evelyn CALDARIUM online. IndexedDB, gap-encoded shelves, Web Worker TNY2, X-Ray stepper, and Cartridge Validator are active.</span>");
   setMon([0.7, 0.8, 0.65, 0.85], 0.94, 0, "Pick a cartridge or open the Workshop. Zeep zorp, team.");
 
   function mainLoop() {

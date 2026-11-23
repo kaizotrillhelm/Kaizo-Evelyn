@@ -18,13 +18,13 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 
 | Project | Link | Licence | Idea used |
 | --- | --- | --- | --- |
-| BitNet / bitnet.cpp (Microsoft) | https://github.com/microsoft/BitNet | MIT | ternary weights, add-only inference (`BitNetI2S`) |
+| BitNet / bitnet.cpp (Microsoft) | https://github.com/microsoft/BitNet | MIT | ternary weights, add-only inference (`TernaryPacked`) |
 | llguidance | https://github.com/guidance-ai/llguidance | MIT | masking invalid tokens by grammar before sampling |
 | XGrammar | https://github.com/mlc-ai/xgrammar | Apache-2.0 | same |
-| exo | https://github.com/exo-explore/exo | Apache-2.0 | splitting a model's layers across several cheap devices (`ExoLayerPool`, a simulation) |
+| exo | https://github.com/exo-explore/exo | Apache-2.0 | splitting a model's layers across several cheap devices (`LanLayerPool`, a simulation) |
 | **AirLLM** (lyogavin) | https://github.com/lyogavin/airllm | Apache-2.0 | **Inspiration for `js/evelyn_stream.js`**: run a model that does not fit in memory by loading one layer at a time, running it and dropping it; read the next layer ahead while the current one computes; check each layer shard. Evelyn takes the ideas only: the `layerAt(l)` accessor, per-layer prefetch, per-layer CRC32 pins (`SovereignManifest`), layer-order prefill, and a text store addressed by byte offset (`OffsetShelfStore`). No AirLLM code and no Python is included; the implementation is written fresh in ES5 for the `TNY2` file. |
 | **A benchmark and optimisation review** (Google AI Studio chat, saved 2026-11-23) | the chat export, not a project | not applicable | The list of what to measure (speed, size, accuracy, memory, against a baseline) and these ideas: a hash-table LZW compressor and a lookup table for base64, a coding lab that decodes each line once, cached topics and typed scores in the library search, skipping the zero columns after the ReLU, integer activations and an exponential table (`js/evelyn_potato.js`), and the fix for the number checker that accepted 100 against 1000. The code was written again here and every change is compared with the old code (`js/test/legacy/`); two of its claims did not hold when measured (the unrolled product loop is slower on a JIT, the integer engine is slower on a JIT) and are described in the README section "Speed work and benchmarks". |
-| **A design for pairing Evelyn with a local Inkling** (Google AI Studio chat, saved 2026-11-23) | the chat export, not a project | not applicable | Three code files and a header layout: an agent that answers sums itself, retrieves from the offset shelves, picks the reasoning effort and checks the draft's numbers (`js/evelyn_inkling_agent.js`); a pool of small KV21 subagents with a confidence gate from the gap between the best and second best letter score (`js/evelyn_cascade.js`); a driver for llama-server with a grammar made from the shelf ids, a loop cut on the token stream, prefetch of named shelves and slot checkpoints (`js/evelyn_gguf_copilot.js`); and the `TNY3` header with free vocabulary, context length and assistant heads (`js/evelyn_tny3.js`). The code was changed where reading it showed a fault and is tested against a mock server (`js/test/evelyn_inkling_tests.js`). The chat's claims about speed and accuracy were not measured and are not repeated as results; see the README section "Working with a local Inkling". |
+| **A design for pairing Evelyn with a local Inkling** (Google AI Studio chat, saved 2026-11-23) | the chat export, not a project | not applicable | Three code files and a header layout: an agent that answers sums itself, retrieves from the offset shelves, picks the reasoning effort and checks the draft's numbers (`js/evelyn_inkling_agent.js`); a pool of small KV21 subagents with a confidence gate from the gap between the best and second best letter score (`js/evelyn_cascade.js`); a driver for llama-server with a grammar made from the shelf ids, a loop cut on the token stream, prefetch of named shelves and slot checkpoints (`js/evelyn_gguf_driver.js`); and the `TNY3` header with free vocabulary, context length and assistant heads (`js/evelyn_tny3.js`). The code was changed where reading it showed a fault and is tested against a mock server (`js/test/evelyn_inkling_tests.js`). The chat's claims about speed and accuracy were not measured and are not repeated as results; see the README section "Working with a local Inkling". |
 | llama.cpp | https://github.com/ggml-org/llama.cpp | MIT | the local model server the optional bridge can talk to |
 | whisper.cpp | https://github.com/ggml-org/whisper.cpp | MIT | offline speech-to-text path (`LocalTranscriptPipe`) |
 | uzu | https://github.com/trymirai/uzu | MIT | an example of benchmarking local engines (`RuntimeBenchSelector`) |
@@ -33,14 +33,14 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 
 ## 3. Research
 
-### 3.1 Frontier systems (`neon/evelyn_frontier.js`, `neon/evelyn_window_engine.js`)
+### 3.1 Frontier systems (`caldarium/evelyn_frontier.js`, `caldarium/evelyn_window_engine.js`)
 
 | Work | As cited | Link | Used for |
 | --- | --- | --- | --- |
-| Titans: Learning to Memorize at Test Time | Behrouz, Zhong, Mirrokni; NeurIPS 2025 | [arXiv:2501.00663](https://arxiv.org/abs/2501.00663) | `TitansContinuumMemory` in `evelyn_frontier.js` |
+| Titans: Learning to Memorize at Test Time | Behrouz, Zhong, Mirrokni; NeurIPS 2025 | [arXiv:2501.00663](https://arxiv.org/abs/2501.00663) | `ContinuumMemory` in `evelyn_frontier.js` |
 | Nested Learning | Behrouz et al.; NeurIPS 2025 | [arXiv:2512.24695](https://arxiv.org/abs/2512.24695) | same module (multi-speed memory) |
 | Persona Vectors | Chen et al. | [arXiv:2507.21509](https://arxiv.org/abs/2507.21509) | `ActivationSteerer` in `evelyn_frontier.js` |
-| HippoRAG 2: From RAG to Memory | Gutierrez et al.; ICML 2025 | [search](https://arxiv.org/search/?searchtype=all&query=HippoRAG%202%3A%20From%20RAG%20to%20Memory) | `HippoGraphMemory` (graph memory with Personalized PageRank) |
+| HippoRAG 2: From RAG to Memory | Gutierrez et al.; ICML 2025 | [search](https://arxiv.org/search/?searchtype=all&query=HippoRAG%202%3A%20From%20RAG%20to%20Memory) | `GraphMemory` (graph memory with Personalized PageRank) |
 | Byte Latent Transformer | Pagnoni et al.; ACL 2025 | [search](https://arxiv.org/search/?searchtype=all&query=Byte%20Latent%20Transformer) | `EntropyPatcher` |
 | XGrammar | Dong et al.; MLSys 2025 | [search](https://arxiv.org/search/?searchtype=all&query=XGrammar) | `GrammarDecoder` (token masking by grammar) |
 | CRANE (grammar-constrained decoding) | ICML 2025 | [search](https://arxiv.org/search/?searchtype=all&query=CRANE%20(grammar-constrained%20decoding)) | alternating free and constrained decoding windows |
@@ -48,7 +48,7 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 | Huginn recurrent-depth model | Geiping et al.; February 2025 | [search](https://arxiv.org/search/?searchtype=all&query=Huginn%20recurrent-depth%20model) | `LoopedReasoner`, `evelyn_window_engine.js` |
 | Tiny Recursive Models | NeurIPS 2026 | [search](https://arxiv.org/search/?searchtype=all&query=Tiny%20Recursive%20Models) | `LoopedReasoner` |
 
-### 3.2 Writing-tic research (`neon/evelyn_voice_guard.js`)
+### 3.2 Writing-tic research (`caldarium/evelyn_voice_guard.js`)
 
 | Work | As cited | Link | Used for |
 | --- | --- | --- | --- |
@@ -56,7 +56,7 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 
 Also read for the same module (no links available for most): corpus studies on AI vocabulary (Kobak et al. 2024; Juzek and Ward 2025), Reinhart et al. (PNAS 2025) on nominalizations and trailing participle clauses, and The Economist's article "How to Spot AI Writing" (30 July 2026). The community page [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) (text under CC BY-SA 4.0) informed the rule list; the rules in the code are written in our own words.
 
-### 3.3 Manual compiler and agent memory (`neon/evelyn_manual_compiler.js`)
+### 3.3 Manual compiler and agent memory (`caldarium/evelyn_manual_compiler.js`)
 
 | Work | As cited | Link | Used for |
 | --- | --- | --- | --- |
@@ -75,7 +75,7 @@ Also read for the same module (no links available for most): corpus studies on A
 | DRIFT | - | [search](https://arxiv.org/search/?searchtype=all&query=DRIFT) | noted, not built |
 | Spotter | - | [search](https://arxiv.org/search/?searchtype=all&query=Spotter) | fast controller with reflection on error (robotics) |
 
-### 3.4 Paper boosts (`neon/evelyn_paper_boost.js`, `evelyn_paper_boost2.js`, `evelyn_paper_boost3.js`)
+### 3.4 Paper boosts (`caldarium/evelyn_paper_boost.js`, `evelyn_paper_boost2.js`, `evelyn_paper_boost3.js`)
 
 | Work | As cited | Link | Used for |
 | --- | --- | --- | --- |
@@ -112,7 +112,7 @@ Also read for the same module (no links available for most): corpus studies on A
 | AutoSR | - | [search](https://arxiv.org/search/?searchtype=all&query=AutoSR) | `MiniAutoSR` |
 | AutoNumerics | - | [search](https://arxiv.org/search/?searchtype=all&query=AutoNumerics) | `MiniAutoSR` |
 
-### 3.5 Late-2026 adaptations (`neon/evelyn_late2026_core.js`)
+### 3.5 Late-2026 adaptations (`caldarium/evelyn_late2026_core.js`)
 
 Patterns from product and research announcements in late 2026, rebuilt as small local mechanisms (steerable planning, a pose-indexed spatial cache, dynamic resolution scaling, prosody direction, specification guards, lease-based safety, worktree pools, the MCP and A2A bus). The announcements named were from Google DeepMind (Genie), Tencent (Worldcrafter), Skywork (Matrix-Game), ByteDance (OmniHuman), Fish Audio (Drama), Liquid AI (LFM2.5), Anthropic (Model Context Protocol) and Google (Agent2Agent). No code or model from any of them is used. The claims were taken from a search summary and were not checked.
 
@@ -120,8 +120,8 @@ Patterns from product and research announcements in late 2026, rebuilt as small 
 
 | Source | Link | Used for |
 | --- | --- | --- |
-| "Agent platform of 2027", post by @john_ssuh | https://x.com/john_ssuh/status/2124336124172935336 | the eight pillars in `neon/evelyn_agent_os.js` |
-| Thread on local models, open weights and private inference (21 November 2026) and its replies, including [@gladstein](https://x.com/gladstein), [@natolambert](https://x.com/natolambert), [@jperla](https://x.com/jperla), [@Melt_Dem](https://x.com/Melt_Dem) | no link kept | the ideas in `neon/evelyn_sovereign_local.js` (benchmark the engines, pool old devices, scrub personal data before any online step, offline transcription, pin the model files by checksum) |
+| "Agent platform of 2027", post by @john_ssuh | https://x.com/john_ssuh/status/2124336124172935336 | the eight pillars in `caldarium/evelyn_agent_os.js` |
+| Thread on local models, open weights and private inference (21 November 2026) and its replies, including [@gladstein](https://x.com/gladstein), [@natolambert](https://x.com/natolambert), [@jperla](https://x.com/jperla), [@Melt_Dem](https://x.com/Melt_Dem) | no link kept | the ideas in `caldarium/evelyn_sovereign_local.js` (benchmark the engines, pool old devices, scrub personal data before any online step, offline transcription, pin the model files by checksum) |
 | Human Rights Foundation, AI program | https://hrf.org/ai | named in that thread |
 | encrypteveryprompt.org | https://encrypteveryprompt.org | named in that thread (privacy-first routing) |
 | Interconnects | https://interconnects.ai | named in that thread |
@@ -176,7 +176,7 @@ Fetched with `tools/fetch_reading_refs.py` from the `gutenberg.pglaf.org` mirror
 
 ## 6. Data in this repository
 
-- The 111 creature species in `neon/evelyn_chums_data.js` are generated from the author's own character database (`tools/gen_chums.js`); they are original and not taken from any source above.
+- The 111 creature species in `caldarium/evelyn_chums_data.js` are generated from the author's own character database (`tools/gen_chums.js`); they are original and not taken from any source above.
 - The starter facts, rooms and lessons in the three editions were written in the conversation the code came from. No third-party dataset file is embedded (the country and periodic-table datasets that appeared in that conversation are not part of Evelyn).
 - The BASIC keyword list in `tools/bas_keywords.json` is a plain list of language keywords used to check names.
 

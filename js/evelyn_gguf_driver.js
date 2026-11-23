@@ -1,4 +1,4 @@
-/* evelyn_gguf_copilot.js - Evelyn drives a local llama-server that runs the Inkling GGUF.
+/* evelyn_gguf_driver.js - Evelyn drives a local llama-server that runs the Inkling GGUF.
 
    What owning the server's loop lets Evelyn do that a plain chat call cannot:
      1. a grammar built from the shelf ids she found, so the answer can only cite sources that exist (GBNF);
@@ -22,11 +22,16 @@
 
   var isNode = (typeof module !== "undefined" && typeof require === "function");
   var http = isNode ? require("http") : null;
+  var effortFields = isNode ? require("./evelyn_inkling_agent.js").effortFields : null;   /* one rule for how an effort is sent */
 
   /* ======================================================================
      1. PURE HELPERS (tested without a server)
      ====================================================================== */
   /* a GBNF grammar: {"answer": "...", "sources": ["shelf#id", ...]} where the sources can only be the hits */
+  /* Measured on Inkling 2 Mini (LM Studio's llama.cpp): with a grammar on from the first token the model does not think and
+     the answer string was a placeholder ("...") in 7 of 8 runs. The grammar guarantees the shape and the cited ids; it does
+     not make the model write an answer. For an answer, let the model think and check the cited ids afterwards
+     (verifyCitationsAgainstHits in evelyn_inkling_agent.js). A minimum length for the string was tried and made it ramble. */
   function buildGroundedGrammar(hits) {
     var citeRule = hits && hits.length
       ? hits.map(function (h) { return '"\\"' + h.shelf + "#" + h.id + '\\""'; }).join(" | ")
@@ -69,9 +74,9 @@
   }
 
   /* ======================================================================
-     2. THE COPILOT
+     2. THE DRIVER
      ====================================================================== */
-  function EvelynInklingCopilot(opts) {
+  function EvelynInklingDriver(opts) {
     opts = opts || {};
     this.host = opts.host || "127.0.0.1";
     this.port = opts.port || 8080;
@@ -84,7 +89,7 @@
   }
 
   /* KV-cache checkpoint or rewind of one server slot (the server needs --slot-save-path) */
-  EvelynInklingCopilot.prototype.slotAction = function (slotId, action, filename, cb) {
+  EvelynInklingDriver.prototype.slotAction = function (slotId, action, filename, cb) {
     var finished = false;
     function done(err, res) { if (finished) return; finished = true; cb(err, res); }
     if (!http) { done(new Error("needs Node's http module")); return; }
@@ -112,15 +117,15 @@
     req.end();
   };
 
-  EvelynInklingCopilot.prototype.checkpoint = function (slotId, name, cb) { this.slotAction(slotId, "save", name, cb); };
-  EvelynInklingCopilot.prototype.rewind = function (slotId, name, cb) { this.slotAction(slotId, "restore", name, cb); };
+  EvelynInklingDriver.prototype.checkpoint = function (slotId, name, cb) { this.slotAction(slotId, "save", name, cb); };
+  EvelynInklingDriver.prototype.rewind = function (slotId, name, cb) { this.slotAction(slotId, "restore", name, cb); };
 
-  EvelynInklingCopilot.prototype.buildGroundedGrammar = function (hits) { return buildGroundedGrammar(hits); };
+  EvelynInklingDriver.prototype.buildGroundedGrammar = function (hits) { return buildGroundedGrammar(hits); };
 
   /* Streams one generation. opts: prompt (for /completion) or messages (for /v1/chat/completions), slotId, maxTokens,
      temperature, effort, grammar, loopWindow, loopRepeats, onToken(text). The callback gets
      { text, aborted: null | "loop_detected", prefetched: [ids], events } once. */
-  EvelynInklingCopilot.prototype.streamWithCopilot = function (opts, cb) {
+  EvelynInklingDriver.prototype.streamWithDriver = function (opts, cb) {
     var self = this, finished = false, aborted = null, req = null;
     function done(err, result) { if (finished) return; finished = true; cb(err, result); }
     if (!http) { done(new Error("needs Node's http module")); return; }
@@ -129,17 +134,21 @@
       id_slot: opts.slotId || 0,
       cache_prompt: true,
       stream: true,
-      temperature: opts.temperature !== undefined ? opts.temperature : 0.4,
-      reasoning_effort: opts.effort !== undefined ? opts.effort : 0.25
+      temperature: opts.temperature !== undefined ? opts.temperature : 0.4
     };
+    var ef = effortFields(opts.effort !== undefined ? opts.effort : 0.25, null), ek;
+    for (ek in ef) body[ek] = ef[ek];
     if (chat) { body.messages = opts.messages; body.max_tokens = opts.maxTokens || 512; }
     else { body.prompt = opts.prompt; body.n_predict = opts.maxTokens || 512; }
     if (opts.grammar) body.grammar = opts.grammar;
     var payload = JSON.stringify(body);
     var winLen = opts.loopWindow || this.loopWindow, reps = opts.loopRepeats || this.loopRepeats;
-    var fullText = "", recent = [], events = 0, lastPrefetchAt = 0, lastLoopCheck = 0;
+    var fullText = "", recent = [], events = 0, lastPrefetchAt = 0, lastLoopCheck = 0, finalOutput = "";
 
-    function result() { return { text: fullText, aborted: aborted, prefetched: Object.keys(self.prefetchCache), events: events }; }
+    /* LM Studio's llama.cpp sends no text deltas while a grammar is on: the whole text is in __lmstudio.model_output of the last event */
+    function result() {
+      return { text: fullText || finalOutput, aborted: aborted, prefetched: Object.keys(self.prefetchCache), events: events, fromFinalEvent: !fullText && !!finalOutput };
+    }
 
     req = http.request({
       hostname: this.host, port: this.port, path: chat ? "/v1/chat/completions" : "/completion", method: "POST",
@@ -165,6 +174,7 @@
           var ev;
           try { ev = JSON.parse(data); } catch (e) { continue; }
           events++;
+          if (ev.__lmstudio && typeof ev.__lmstudio.model_output === "string") finalOutput = ev.__lmstudio.model_output;
           var tok = tokenOfEvent(ev);
           if (!tok) continue;
           fullText += tok;
@@ -199,11 +209,11 @@
   };
 
   var API = {
-    EvelynInklingCopilot: EvelynInklingCopilot,
+    EvelynInklingDriver: EvelynInklingDriver,
     buildGroundedGrammar: buildGroundedGrammar,
     loopDetected: loopDetected,
     tokenOfEvent: tokenOfEvent
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
-  else root.EvelynGgufCopilot = API;
+  else root.EvelynGgufDriver = API;
 })(typeof window !== "undefined" ? window : (typeof self !== "undefined" ? self : this));

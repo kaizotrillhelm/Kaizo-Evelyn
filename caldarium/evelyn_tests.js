@@ -1,4 +1,4 @@
-/* evelyn_tests.js - Comprehensive ES5 Test Suite for Evelyn NEON Stack
+/* evelyn_tests.js - Comprehensive ES5 Test Suite for Evelyn CALDARIUM Stack
    Run in Node.js : node evelyn_tests.js
    Run in Browser : open evelyn_test_runner.html */
 (function (root) {
@@ -494,7 +494,7 @@
         finish(e);
       }
     }
-    logFn("=== EVELYN NEON COMPREHENSIVE TEST SUITE (" + tests.length + " tests) ===");
+    logFn("=== EVELYN CALDARIUM COMPREHENSIVE TEST SUITE (" + tests.length + " tests) ===");
     next();
   }
 

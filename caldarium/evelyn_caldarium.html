@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>EVELYN // NEON ECHO INTERFACE & CARTRIDGE HUB</title>
+<title>EVELYN // CALDARIUM ECHO INTERFACE & CARTRIDGE HUB</title>
 <style>
   /* Exact TINY 2.1 VGA Neon Palette from TINY.C neon_palette() (0..63 scaled x4) */
   :root {
@@ -104,7 +104,7 @@
 <body>
 
 <div class="titlebar">
-  <div>&#9668;&#9658; <strong>E V E L Y N</strong> &middot; NEON ECHO ARCADE &amp; LIBRARY &middot; <span id="hdrWeights">OFFLINE LIBRARY</span></div>
+  <div>&#9668;&#9658; <strong>E V E L Y N</strong> &middot; CALDARIUM ECHO ARCADE &amp; LIBRARY &middot; <span id="hdrWeights">OFFLINE LIBRARY</span></div>
   <div><span class="online-dot">&#9632; ONLINE</span> &middot; <span id="hdrProfile">Kid 1 [M] XP:0</span> &middot; <span id="hdrClock">--:--</span></div>
 </div>
 
@@ -283,7 +283,7 @@
     <div id="trophyList" style="font-size:12px;color:var(--amber);min-height:48px">None yet — play a cartridge!</div>
 
     <div class="c-dim" style="font-size:11px;margin-top:8px">ACTIVE ECHO STATUS</div>
-    <div id="mStatus" style="font-size:12px;color:var(--mint)">Ready in Neon Mode.</div>
+    <div id="mStatus" style="font-size:12px;color:var(--mint)">Ready in Caldarium Mode.</div>
   </div>
 </div>
 
@@ -294,7 +294,7 @@
     <span id="stVoice"><b>F3</b> Voice <span class="on">ROBOT</span></span> &nbsp;
     <span id="stCreat"><b>F4</b> Creativity <span class="on">0</span></span>
   </div>
-  <div id="stRight">EVELYN NEON 2.1</div>
+  <div id="stRight">EVELYN CALDARIUM 2.1</div>
 </div>
 
 <script>
@@ -770,13 +770,13 @@
     },
     load: function () {
       try {
-        var raw = localStorage.getItem("evelyn_neon_profiles_v1");
+        var raw = localStorage.getItem("evelyn_caldarium_profiles_v1");
         if (raw) this.store = JSON.parse(raw);
       } catch (e) {}
       this.syncUI();
     },
     save: function () {
-      try { localStorage.setItem("evelyn_neon_profiles_v1", JSON.stringify(this.store)); } catch (e) {}
+      try { localStorage.setItem("evelyn_caldarium_profiles_v1", JSON.stringify(this.store)); } catch (e) {}
       this.syncUI();
     },
     cur: function () { return this.store[this.currentId]; },
@@ -1596,10 +1596,10 @@
 
   /* Boot Greeting */
   Profiles.load();
-  appendChat("<span class='c-dim'>Hello! I am EVELYN, running offline in NEON mode with compressed Echo shelves.</span>");
+  appendChat("<span class='c-dim'>Hello! I am EVELYN, running offline in CALDARIUM mode with compressed Echo shelves.</span>");
   appendChat("<span class='c-dim'>Try asking: <span class='c-q'>capital of peru</span> &middot; <span class='c-q'>symbol for gold</span> &middot; <span class='c-q'>is a whale a fish</span> &middot; <span class='c-q'>what is 7 * 8</span></span>");
   appendChat("<span class='c-dim'>Press <b>F2</b> Sound, <b>F3</b> Voice (Robot/Speech/Off), <b>F4</b> Creativity, or pick any Cartridge tab above!</span>");
-  updateMonitor([0.65, 0.8, 0.55, 0.72], 0.92, 0, "NEON System Ready.");
+  updateMonitor([0.65, 0.8, 0.55, 0.72], 0.92, 0, "CALDARIUM System Ready.");
 
   function mainLoop() {
     Blaster.tick();

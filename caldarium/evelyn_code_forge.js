@@ -1,5 +1,5 @@
 /* evelyn_code_forge.js - Upgrades Evelyn Into a Multi-Language Coding Workstation:
-   1. MiniGit           (Content-addressed commits, line-by-line diff, instant rollback)
+   1. MiniHistory           (Content-addressed commits, line-by-line diff, instant rollback)
    2. MiniSQL           (Pure-ES5 relational SQL: CREATE, INSERT, SELECT/WHERE/ORDER/LIMIT/AGG)
    3. Asm6502 & VM6502  (Real 2-pass 6502 assembler with labels + cycle-stepping CPU VM)
    4. SingleFileExporter(Packages student HTML/CSS/JS into 1 standalone offline .html app)
@@ -13,7 +13,7 @@
   var Sent = root.EvelynSentinel;
 
   /* =========================================================================
-     1. MINIGIT (OFFLINE VERSION CONTROL, LINE DIFF & ROLLBACK)
+     1. MINIHISTORY (OFFLINE VERSION CONTROL, LINE DIFF & ROLLBACK)
      ========================================================================= */
   function cloneMap(obj) {
     var out = Object.create(null);
@@ -37,13 +37,13 @@
     return out;
   }
 
-  function MiniGit() {
+  function MiniHistory() {
     this.commits = Object.create(null);
     this.order = [];
     this.head = null;
   }
 
-  MiniGit.prototype.commit = function (message, filesMap) {
+  MiniHistory.prototype.commit = function (message, filesMap) {
     var snap = cloneMap(filesMap || {});
     var payload = (this.head || "ROOT") + "|" + String(message || "update") + "|" + JSON.stringify(snap);
     var hash = (Sent ? Sent.crc32(payload).toString(16) : String(Date.now())) + "_" + this.order.length;
@@ -54,7 +54,7 @@
     return rec;
   };
 
-  MiniGit.prototype.log = function () {
+  MiniHistory.prototype.log = function () {
     var out = [];
     for (var i = this.order.length - 1; i >= 0; i--) {
       var c = this.commits[this.order[i]];
@@ -63,14 +63,14 @@
     return out;
   };
 
-  MiniGit.prototype.checkout = function (hash) {
+  MiniHistory.prototype.checkout = function (hash) {
     var c = this.commits[hash];
     if (!c) return { ok: false, error: "Commit not found: " + hash };
     this.head = hash;
     return { ok: true, files: cloneMap(c.files), commit: c };
   };
 
-  MiniGit.prototype.diff = function (hashA, hashB, fileName) {
+  MiniHistory.prototype.diff = function (hashA, hashB, fileName) {
     var a = this.commits[hashA], b = this.commits[hashB];
     if (!a || !b) return { ok: false, error: "Commit hash missing." };
     return { ok: true, lines: diffLines(a.files[fileName] || "", b.files[fileName] || "") };
@@ -318,7 +318,7 @@
 
   root.EvelynCodeForge = {
     diffLines: diffLines,
-    MiniGit: MiniGit,
+    MiniHistory: MiniHistory,
     MiniSQL: MiniSQL,
     Asm6502: Asm6502,
     VM6502: VM6502,

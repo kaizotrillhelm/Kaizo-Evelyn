@@ -297,7 +297,7 @@
   function evalTernaryBotPolicy(packedTernaryPolicy, sensors, gov, nowMs) {
     var x = new Float32Array([sensors.left / 100.0, sensors.front / 100.0, sensors.right / 100.0, 1.0]);
     var y = new Float32Array(2);
-    F.BitNetI2S.matvecTernary(packedTernaryPolicy, x, y);
+    F.TernaryPacked.matvecTernary(packedTernaryPolicy, x, y);
     var lPwm = Math.tanh(y[0]) * 80;
     var rPwm = Math.tanh(y[1]) * 80;
     return gov.guardCommand(CMD.DRIVE, lPwm, rPwm, 90, 90, nowMs);

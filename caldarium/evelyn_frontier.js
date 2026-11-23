@@ -1,9 +1,9 @@
 /* evelyn_frontier.js - 7 Cutting-Edge 2025-2026 AI Systems in Pure ES5 JavaScript:
-   1. BitNetI2S            (1.58-bit ternary {-1,0,+1} multiplication-free matvec)
-   2. TitansContinuumMemory(Test-time surprise-driven fast/slow memory + Sleep pass)
+   1. TernaryPacked            (1.58-bit ternary {-1,0,+1} multiplication-free matvec)
+   2. ContinuumMemory(Test-time surprise-driven fast/slow memory + Sleep pass)
    3. LoopedReasoner       (Recurrent-depth layer looping + delta-norm early halting)
    4. GrammarDecoder       (97-token DFA logit masking + forced-token skip + CRANE)
-   5. HippoGraphMemory     (HippoRAG-2 bipartite passage+triple Personalized PageRank)
+   5. GraphMemory     (HippoRAG-2 bipartite passage+triple Personalized PageRank)
    6. ActivationSteerer    (Contrastive persona vectors + probe-gated PID steering)
    7. EntropyPatcher       (BLT-inspired dynamic byte-entropy patching & compute routing)
    Zero dependencies. Pure ES5. Runs in Browser and Node.js. */
@@ -19,7 +19,7 @@
      1. BITNET b1.58 / I2_S MULTIPLICATION-FREE TERNARY ENGINE
         2-bit encoding per weight: 00 -> 0, 01 -> +1, 11 -> -1 (4 weights/byte).
      ========================================================================= */
-  var BitNetI2S = {
+  var TernaryPacked = {
     packTernary: function (floatWeights, rows, cols) {
       var n = rows * cols, i, sumAbs = 0.0;
       for (i = 0; i < n; i++) sumAbs += Math.abs(floatWeights[i]);
@@ -104,7 +104,7 @@
     return v;
   }
 
-  function TitansContinuumMemory(dim) {
+  function ContinuumMemory(dim) {
     this.dim = dim || 32;
     var n = this.dim * this.dim;
     this.fastM = new Float32Array(n);     // High-frequency test-time memory
@@ -116,7 +116,7 @@
     this.lr = 0.65;                       // Test-time learning step
   }
 
-  TitansContinuumMemory.prototype._matvecCombined = function (k) {
+  ContinuumMemory.prototype._matvecCombined = function (k) {
     var D = this.dim, out = new Float32Array(D), r, c;
     for (r = 0; r < D; r++) {
       var s = 0.0, b = r * D;
@@ -127,7 +127,7 @@
   };
 
   /* Observe a (key, value) pair at test time: updates fastM proportional to surprise */
-  TitansContinuumMemory.prototype.observe = function (keyText, valText) {
+  ContinuumMemory.prototype.observe = function (keyText, valText) {
     var D = this.dim;
     var k = hashTextVec(keyText, D);
     var v = hashTextVec(valText, D);
@@ -170,7 +170,7 @@
     return { surprise: surprise, updatedFastNorm: this.matrixNorm(this.fastM) };
   };
 
-  TitansContinuumMemory.prototype.recall = function (keyText) {
+  ContinuumMemory.prototype.recall = function (keyText) {
     if (!this.entries.length) return null;
     var k = hashTextVec(keyText, this.dim);
     var pred = this._matvecCombined(k);
@@ -195,7 +195,7 @@
   };
 
   /* Sleep Framework consolidation: distill fastM into slowM and calm transient fast weights */
-  TitansContinuumMemory.prototype.sleepConsolidate = function (blendRate) {
+  ContinuumMemory.prototype.sleepConsolidate = function (blendRate) {
     var rate = blendRate || 0.5;
     var n = this.dim * this.dim, i;
     for (i = 0; i < n; i++) {
@@ -211,7 +211,7 @@
     };
   };
 
-  TitansContinuumMemory.prototype.matrixNorm = function (arr) {
+  ContinuumMemory.prototype.matrixNorm = function (arr) {
     var s = 0.0;
     for (var i = 0; i < arr.length; i++) s += arr[i] * arr[i];
     return Math.sqrt(s);
@@ -435,14 +435,14 @@
         Bipartite graph of Passage nodes + Entity/Triple nodes. Solves 2-hop and
         3-hop questions across disconnected shelf records in < 2 ms on CPU.
      ========================================================================= */
-  function HippoGraphMemory() {
+  function GraphMemory() {
     this.nodes = [];                  // { id, type: 'entity'|'passage', label, text, shelf }
     this.nodeIndex = Object.create(null);
     this.adj = [];                    // adjacency list: nodeId -> [ { to, weight } ]
     this.triples = [];                // { sId, rel, oId, sLabel, oLabel, passageId }
   }
 
-  HippoGraphMemory.prototype._getOrAddNode = function (key, type, label, text, shelf) {
+  GraphMemory.prototype._getOrAddNode = function (key, type, label, text, shelf) {
     if (this.nodeIndex[key] !== undefined) return this.nodeIndex[key];
     var id = this.nodes.length;
     this.nodes.push({ id: id, key: key, type: type, label: label, text: text || label, shelf: shelf || "" });
@@ -451,13 +451,13 @@
     return id;
   };
 
-  HippoGraphMemory.prototype._addUndirectedEdge = function (a, b, w) {
+  GraphMemory.prototype._addUndirectedEdge = function (a, b, w) {
     if (a === b) return;
     this.adj[a].push({ to: b, weight: w || 1.0 });
     this.adj[b].push({ to: a, weight: w || 1.0 });
   };
 
-  HippoGraphMemory.prototype.addPassage = function (passageId, text, shelf, entities) {
+  GraphMemory.prototype.addPassage = function (passageId, text, shelf, entities) {
     var pNode = this._getOrAddNode("P:" + passageId, "passage", passageId, text, shelf);
     var ents = entities || [];
     for (var i = 0; i < ents.length; i++) {
@@ -468,7 +468,7 @@
     return pNode;
   };
 
-  HippoGraphMemory.prototype.addTriple = function (subj, rel, obj, passageId) {
+  GraphMemory.prototype.addTriple = function (subj, rel, obj, passageId) {
     var sId = this._getOrAddNode("E:" + subj.toLowerCase(), "entity", subj, subj, "");
     var oId = this._getOrAddNode("E:" + obj.toLowerCase(), "entity", obj, obj, "");
     this._addUndirectedEdge(sId, oId, 1.5); // relation edge
@@ -484,7 +484,7 @@
   };
 
   /* Personalized PageRank (damping = 0.5 per HippoRAG 2 paper) */
-  HippoGraphMemory.prototype.queryMultiHop = function (queryText, topK) {
+  GraphMemory.prototype.queryMultiHop = function (queryText, topK) {
     var N = this.nodes.length;
     if (N === 0) return { passages: [], entities: [] };
     var low = String(queryText || "").toLowerCase();
@@ -670,11 +670,11 @@
   };
 
   root.EvelynFrontier = {
-    BitNetI2S: BitNetI2S,
-    TitansContinuumMemory: TitansContinuumMemory,
+    TernaryPacked: TernaryPacked,
+    ContinuumMemory: ContinuumMemory,
     LoopedReasoner: LoopedReasoner,
     GrammarDecoder: GrammarDecoder,
-    HippoGraphMemory: HippoGraphMemory,
+    GraphMemory: GraphMemory,
     ActivationSteerer: ActivationSteerer,
     EntropyPatcher: EntropyPatcher
   };

@@ -1,15 +1,15 @@
-"""check_neon_browser.py - drives the NEON stack in real Brave (Playwright), on a server it starts itself.
-   python tests/check_neon_browser.py
+"""check_caldarium_browser.py - drives the CALDARIUM stack in real Brave (Playwright), on a server it starts itself.
+   python tests/check_caldarium_browser.py
    1. evelyn_test_runner.html: every suite (backend with real IndexedDB and Web Workers, suite of 78, director, frontier,
       robotics, fuzz, chum loft, doctor, charter) runs in the browser; no failure.
    2. evelyn_concourse.html: loads with no page error; the 15-door hub, the animated portrait and the Chum Loft are
       mounted; an Echo and a DritchChum are adopted through the page; chat commands work with either word; a door opens
       and an answer is submitted; the profile survives a reload (IndexedDB).
-   3. evelyn_neon.html and game_engine_demo.html load with no page error."""
+   3. evelyn_caldarium.html and game_engine_demo.html load with no page error."""
 import os, sys, socket, subprocess, time, http.server, threading, functools
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-NEON = os.path.join(os.path.dirname(HERE), "neon")
+CALDARIUM = os.path.join(os.path.dirname(HERE), "caldarium")
 BRAVE = r'C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe'
 from playwright.sync_api import sync_playwright
 
@@ -25,7 +25,7 @@ class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 
 port = free_port()
-handler = functools.partial(Quiet, directory=NEON)
+handler = functools.partial(Quiet, directory=CALDARIUM)
 srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 base = "http://127.0.0.1:%d/" % port
@@ -61,7 +61,7 @@ with sync_playwright() as p:
     txt = pg.inner_text("body")
     check("Echoes and DritchChums are the same system" in txt, "Chum Loft is mounted and says Echo and DritchChum are one system")
     check(pg.evaluate("document.querySelectorAll('canvas').length") >= 2, "portrait and play canvases are present")
-    check(pg.evaluate("typeof window.__neonRemount") == "function", "remount hook exists")
+    check(pg.evaluate("typeof window.__caldariumRemount") == "function", "remount hook exists")
     doors = pg.evaluate("Array.prototype.filter.call(document.querySelectorAll('button'), function(b){return /\\(\\d+\\)$/.test(b.textContent)}).length")
     check(doors >= 15, "15 doors listed (%d door buttons)" % doors)
     carts = pg.evaluate("window.EvelynSuite78.CARTRIDGES.length")
@@ -179,7 +179,7 @@ with sync_playwright() as p:
     pg.close()
 
     print("3. other pages")
-    for name in ["evelyn_neon.html", "game_engine_demo.html"]:
+    for name in ["evelyn_caldarium.html", "game_engine_demo.html"]:
         pg = ctx.new_page(); errs = []; watch(pg, errs)
         pg.goto(base + name); time.sleep(1.5)
         check(not errs, name + " loads with no page errors" + ("" if not errs else ": " + errs[0][:200]))
@@ -187,5 +187,5 @@ with sync_playwright() as p:
     b.close()
 
 srv.shutdown()
-print("\nNEON browser check: " + ("PASSED" if not fails else "FAILED (%d)" % len(fails)))
+print("\nCALDARIUM browser check: " + ("PASSED" if not fails else "FAILED (%d)" % len(fails)))
 sys.exit(1 if fails else 0)

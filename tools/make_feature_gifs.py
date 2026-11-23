@@ -5,14 +5,14 @@
                                   by this script around the real portrait.
    media/evelyn_features.gif     the cartridge player, the rule validator, the parent read-out, the glass-box debugger, the safety charter,
                                   MiniSQL and the module status list, all clicked through the real concourse page.
-   Needs playwright (Python) and Pillow. Starts its own loopback server on neon/."""
+   Needs playwright (Python) and Pillow. Starts its own loopback server on caldarium/."""
 import os, sys, io, time, math, socket, threading, functools, http.server
 from playwright.sync_api import sync_playwright
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-NEON = os.path.join(ROOT, "neon")
+CALDARIUM = os.path.join(ROOT, "caldarium")
 MEDIA = os.path.join(ROOT, "media")
 BRAVE = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
 mode = sys.argv[1] if len(sys.argv) > 1 else "both"
@@ -20,7 +20,7 @@ mode = sys.argv[1] if len(sys.argv) > 1 else "both"
 class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
-srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Quiet, directory=NEON))
+srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Quiet, directory=CALDARIUM))
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 base = "http://127.0.0.1:%d/" % port
 
@@ -58,7 +58,7 @@ def face(p):
     b = p.chromium.launch(executable_path=BRAVE, headless=True, args=["--no-sandbox"])
     pg = b.new_context(viewport={"width": 480, "height": 480}).new_page()
     pg.goto("about:blank")
-    pg.add_script_tag(path=os.path.join(NEON, "evelyn_art.js"))
+    pg.add_script_tag(path=os.path.join(CALDARIUM, "evelyn_art.js"))
     pg.evaluate(FACE_PAGE)
     frames = []
     for i in range(100):                      # 100 frames x 100 ms = exactly 10.0 s

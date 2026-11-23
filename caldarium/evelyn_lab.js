@@ -1,4 +1,4 @@
-/* evelyn_lab.js - The Lab view of the NEON Concourse (pure ES5, no network).
+/* evelyn_lab.js - The Lab view of the CALDARIUM Concourse (pure ES5, no network).
    Gives the round-2 modules a screen: Game X-Ray, Asset Studio (IPS), 3D viewer, Code Forge / AST IDE, and a
    status list of the modules that have no screen of their own (paper boosts, late-2026, agent OS, sovereign local,
    language core, hybrid RAG, code power, manual compiler, window engine, WASM, code engine).
@@ -274,7 +274,7 @@
     }
     lines.push("");
     lines.push("Run the tests: node tests/run_all.js (or open evelyn_test_runner.html).");
-    lines.push("Companion bridge: OFF. It is a separate program (node neon/evelyn_bridge.js), loopback only, with a per-start");
+    lines.push("Companion bridge: OFF. It is a separate program (node caldarium/evelyn_bridge.js), loopback only, with a per-start");
     lines.push("token. This page never starts it and never calls a server.");
     lines.push("LAN layer pool: simulation only in this build. It opens no sockets.");
     $("labStatus").textContent = lines.join("\n");

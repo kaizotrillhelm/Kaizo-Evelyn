@@ -21,7 +21,7 @@ evelyn_profile_v1.json
 evelyn_library_v1.json
 
 # --- the companion bridge's workspace (files a learner wrote while it ran) ---
-neon/workspace/
+caldarium/workspace/
 workspace/
 
 # --- downloaded reference libraries and books (other people's copyright or licences) ---

@@ -20,7 +20,7 @@
   }
 
   /* 1. BitNet b1.58 / I2_S ternary packing & multiplication-free matvec */
-  test("BitNetI2S: 4x compression vs INT8, exact ternary unpack, zero inner-loop multiplies & cosine fidelity", function (done) {
+  test("TernaryPacked: 4x compression vs INT8, exact ternary unpack, zero inner-loop multiplies & cosine fidelity", function (done) {
     var rng = B.createRng(2026);
     var rows = 64, cols = 96;
     var wFloat = new Float32Array(rows * cols);
@@ -29,18 +29,18 @@
     for (i = 0; i < wFloat.length; i++) wFloat[i] = (rng() * 2 - 1) * 1.2;
     for (i = 0; i < cols; i++) x[i] = rng() * 2 - 1;
 
-    var packed = F.BitNetI2S.packTernary(wFloat, rows, cols);
+    var packed = F.TernaryPacked.packTernary(wFloat, rows, cols);
     assert(packed.stats.compressionVsInt8 > 3.9, "Expected ~4x compression vs INT8, got " + packed.stats.compressionVsInt8);
     assert(packed.stats.sparsity > 0.15, "Expected real ternary zeros in sparsity");
 
-    var unpacked = F.BitNetI2S.unpackTernary(packed);
+    var unpacked = F.TernaryPacked.unpackTernary(packed);
     for (i = 0; i < unpacked.length; i++) {
       assert(unpacked[i] === -1 || unpacked[i] === 0 || unpacked[i] === 1, "Invalid ternary weight at " + i);
     }
 
     var yTernary = new Float32Array(rows);
     var yRef = new Float32Array(rows);
-    var opReport = F.BitNetI2S.matvecTernary(packed, x, yTernary);
+    var opReport = F.TernaryPacked.matvecTernary(packed, x, yTernary);
     assertEq(opReport.mulOpsInLoop, 0, "Inner ternary loop must execute zero multiplications");
     assert(opReport.skippedZeros > 0, "Ternary matvec should skip zero weights");
 
@@ -60,8 +60,8 @@
   });
 
   /* 2. Titans Test-Time Surprise Memory + Nested Learning / Sleep Consolidation */
-  test("TitansContinuumMemory: Surprise-driven test-time learning, surprise drop on repeat, and Sleep consolidation", function (done) {
-    var mem = new F.TitansContinuumMemory(32);
+  test("ContinuumMemory: Surprise-driven test-time learning, surprise drop on repeat, and Sleep consolidation", function (done) {
+    var mem = new F.ContinuumMemory(32);
 
     /* First exposure to surprising new facts */
     var obs1 = mem.observe("capital of estonia", "tallinn");
@@ -114,7 +114,7 @@
     done();
   });
 
-  /* 4. Grammar-Constrained Logit Decoding + llguidance Skip + Anti-Tic Masking + CRANE */
+  /* 4. Grammar-Constrained Logit Decoding + forced-token Skip + Anti-Tic Masking + CRANE */
   test("GrammarDecoder: Forces 100% valid 12-hr clocks, skips forced tokens, blocks AI tics, and runs CRANE", function (done) {
     var rng = B.createRng(99);
     function noisyLogits() {
@@ -127,7 +127,7 @@
     for (var trial = 0; trial < 15; trial++) {
       var dec = F.GrammarDecoder.decode("clock12", noisyLogits, { maxLen: 10 });
       assert(/^(?:[1-9]|1[0-2]):[0-5][0-9] (?:AM|PM)$/.test(dec.text), "Invalid 12-hour clock emitted: '" + dec.text + "'");
-      assert(dec.skippedForcedSteps >= 2, "Expected llguidance fast-forward skips on ':' / ' ' / 'M'");
+      assert(dec.skippedForcedSteps >= 2, "Expected forced-token fast-forward skips on ':' / ' ' / 'M'");
     }
 
     /* Shelf citation grammar MUST output [letters#digits] */
@@ -148,8 +148,8 @@
   });
 
   /* 5. HippoRAG-2 Multi-Hop Associative Graph Memory */
-  test("HippoGraphMemory: Resolves 2-hop queries across disconnected shelf passages via Personalized PageRank", function (done) {
-    var g = new F.HippoGraphMemory();
+  test("GraphMemory: Resolves 2-hop queries across disconnected shelf passages via Personalized PageRank", function (done) {
+    var g = new F.GraphMemory();
 
     /* Passage 1 links Saltsea Arcade Dunes -> Dune Chorus Worm (does NOT mention elements) */
     g.addPassage("place_dunes", "Saltsea Arcade Dunes is home to the Dune Chorus Worm.", "atlas", ["Saltsea Arcade Dunes", "Dune Chorus Worm"]);
@@ -171,7 +171,7 @@
     for (var i = 0; i < 2; i++) {
       if (res.passages[i].label === "elem_worm") foundElemPassage = true;
     }
-    assert(foundElemPassage, "HippoRAG-2 PPR failed to retrieve disconnected 2-hop passage 'elem_worm' in top 2");
+    assert(foundElemPassage, "graph memory PPR failed to retrieve disconnected 2-hop passage 'elem_worm' in top 2");
     done();
   });
 

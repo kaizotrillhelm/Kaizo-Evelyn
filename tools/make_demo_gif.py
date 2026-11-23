@@ -1,12 +1,12 @@
-"""make_demo_gif.py - records a short tour of the NEON concourse in real Brave and writes an animated GIF.
+"""make_demo_gif.py - records a short tour of the CALDARIUM concourse in real Brave and writes an animated GIF.
    python tools/make_demo_gif.py [out.gif]
-   Needs: playwright (Python) and Pillow. It starts its own loopback server on neon/ and opens nothing else."""
+   Needs: playwright (Python) and Pillow. It starts its own loopback server on caldarium/ and opens nothing else."""
 import os, sys, io, time, socket, threading, functools, http.server
 from playwright.sync_api import sync_playwright
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-NEON = os.path.join(os.path.dirname(HERE), "neon")
+CALDARIUM = os.path.join(os.path.dirname(HERE), "caldarium")
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(HERE), "media", "evelyn_demo.gif")
 BRAVE = r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"
 W, H, OUTW = 1000, 620, 800
@@ -14,7 +14,7 @@ W, H, OUTW = 1000, 620, 800
 class Quiet(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
-srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Quiet, directory=NEON))
+srv = http.server.ThreadingHTTPServer(("127.0.0.1", port), functools.partial(Quiet, directory=CALDARIUM))
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 frames = []   # (image, ms)

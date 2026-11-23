@@ -103,7 +103,7 @@
       if (!idb) { self.ready = true; if (cb) cb(false); return; }
       try {
         /* version 2 adds "books": the full text of each book a learner loads, so any book they have read can become a game */
-        var req = idb.open("EvelynNeonDB_v2", 2);
+        var req = idb.open("EvelynCaldariumDB_v2", 2);
         req.onupgradeneeded = function (e) {
           var d = e.target.result;
           ["shelves", "weights", "cartridges", "profiles", "books"].forEach(function (s) {

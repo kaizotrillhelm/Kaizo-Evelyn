@@ -18,9 +18,9 @@
     if (a !== b) throw new Error((msg ? msg + " - " : "") + "expected " + JSON.stringify(b) + ", got " + JSON.stringify(a));
   }
 
-  /* 1. MiniGit commit, diff, and rollback */
-  test("MiniGit: Commits snapshots, generates line-by-line diff, and rolls back cleanly", function (done) {
-    var repo = new CF.MiniGit();
+  /* 1. MiniHistory commit, diff, and rollback */
+  test("MiniHistory: Commits snapshots, generates line-by-line diff, and rolls back cleanly", function (done) {
+    var repo = new CF.MiniHistory();
     var c1 = repo.commit("Initial pong", { "main.js": "var speed = 2;\nvar score = 0;" });
     var c2 = repo.commit("Speed up ball", { "main.js": "var speed = 5;\nvar score = 0;\nvar combo = 1;" });
 
@@ -134,6 +134,6 @@
     }
     try { cur.fn(done); } catch (e) { done(e); }
   }
-  console.log("=== EVELYN CODE FORGE (GIT, SQL, 6502 VM & APP EXPORTER) TESTS (" + tests.length + ") ===");
+  console.log("=== EVELYN CODE FORGE (HISTORY, SQL, 6502 VM & APP EXPORTER) TESTS (" + tests.length + ") ===");
   next();
 })(typeof window !== "undefined" ? window : global);

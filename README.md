@@ -55,7 +55,7 @@ All three programs take the same commands: a question, `/mode R|A|D|M`, `/adv` t
 
 ## What each edition can do
 
-| | JavaScript (`js/`, plus `neon/`) | C (`c/`) | BASIC (`basic/`) |
+| | JavaScript (`js/`, plus `caldarium/`) | C (`c/`) | BASIC (`basic/`) |
 | --- | --- | --- | --- |
 | Offline library: add text, search, `LIBRARY.EVL` | yes | yes | yes, up to 1000 entries |
 | `TNY2` neural engine, answers one letter at a time | yes, greedy or sampled | yes, greedy or sampled | yes, greedy only |
@@ -68,7 +68,7 @@ All three programs take the same commands: a question, `/mode R|A|D|M`, `/adv` t
 | Several shelves with the number checker | yes | yes | no |
 | Game and bot packets, integer dot product | yes | yes | no |
 | Runs from a web page with nothing installed | yes (`js/index.html`) | no | no |
-| Concourse with 78 games, Echo and DritchChum pets, Lab (game X-ray, 3D viewer, SQL, code check), robot simulator, book games | yes (`neon/`) | no | no |
+| Concourse with 78 games, Echo and DritchChum pets, Lab (game X-ray, 3D viewer, SQL, code check), robot simulator, book games | yes (`caldarium/`) | no | no |
 | Terminal program | `node js/evelyn_cli.js` | `evelyn.exe` | `evelyn.exe` (FreeBASIC) |
 | Use as a library in your own program | `require` or a script tag | `evelyn.h` | no (a program, not a library) |
 
@@ -126,13 +126,14 @@ Not measured: a real old machine, a real old browser, a trained `TINY.BIN`, the 
 
 ## Working with a local Inkling (JavaScript only)
 
-Evelyn can stand in front of a language model that runs on the same machine and speaks the OpenAI chat format, such as llama-server with the Inkling 2 Mini GGUF. The four files below came from a design written in an AI Studio chat (see `CREDITS.md`) and were changed where reading the code showed a fault.
+Evelyn can stand in front of a language model that runs on the same machine and speaks the OpenAI chat format, such as llama-server with the Inkling 2 Mini GGUF. The files below came from a design written in an AI Studio chat (see `CREDITS.md`) and were changed where reading the code showed a fault.
 
 | File | What it does |
 | --- | --- |
 | `js/evelyn_inkling_agent.js` | `EvelynInklingAgent.ask(question, cb)`: a sum of two whole numbers is answered by `CodeSandbox` with no model call; otherwise the question is searched in an `OffsetShelfStore` (only the matching byte slices are read, each CRC32 checked), the model is asked with effort `low` when excerpts were found and `medium` when none were, and every number of the draft must be a whole number of the excerpts or of the question. A draft that fails is sent back once with the list of numbers that are missing; if the second draft still fails, the answer is the shelf text. `InklingClient` is the HTTP client. |
 | `js/evelyn_cascade.js` | `KV21SubagentPool` primes a role ("ROUTE:", "KEYWORDS:") on a `Tiny2Model` once and keeps its cache as a KV21 snapshot; switching roles is one `importKVCache`. `thinkWithMargin` reads the gap between the best and second best letter score of each step. `TieredEvelynOrchestrator` uses a confident expander to widen the shelf search, a confident router to pick the effort (an unsure router gets `medium`), and calls the model only when no shelf answer is wanted. |
-| `js/evelyn_gguf_copilot.js` | `EvelynInklingCopilot` drives llama-server: a GBNF grammar built from the shelf ids that were found (`buildGroundedGrammar`), a streamed generation that cuts a repeating stretch (`loopDetected`) and reads ahead a shelf the model names while it thinks, and `checkpoint` / `rewind` of a server slot. |
+| `js/evelyn_gguf_driver.js` | `EvelynInklingDriver` drives llama-server: a GBNF grammar built from the shelf ids that were found (`buildGroundedGrammar`), a streamed generation that cuts a repeating stretch (`loopDetected`) and reads ahead a shelf the model names while it thinks, and `checkpoint` / `rewind` of a server slot. |
+| `js/evelyn_inkling_codeloop.js` | `EvelynCodeLoop`: for a task that asks for code, search the notes, ask Inkling, RUN the code with a verifier the caller gives, send the exact errors back for up to `maxRepairs` repairs. `extractCode` takes the fenced block. The verifier used by the tests is `js/test/three_verify_worker.js` (three r187, Node permission model on). |
 | `js/evelyn_tny3.js` | The `TNY3` header: vocabulary, context length, width, layers, heads, feed-forward size, a rotary-position flag and a count of assistant outputs, in 24 bytes, with a header writer and a parameter estimate. Only the header. The weight layout, rotary attention and the output heads are not written, and `Tiny2Model` refuses a `TNY3` file. |
 
 ```js
@@ -142,9 +143,27 @@ var agent = new A.EvelynInklingAgent(offsetShelfStore, profileManager, client);
 agent.ask("Where is Frostgate?", function (err, r) { /* r.answer, r.path, r.verified, r.inklingCalled */ });
 ```
 
-**Tested.** `node js/test/evelyn_inkling_tests.js` (37 checks, a step of `node tests/run_all.js`) runs all of it against a small mock server in the test file that plays llama-server: the request bodies, the effort field, the repair pass, HTTP errors and a closed port (each reported once), the KV21 switch giving the same letters and margins every time, the margin equal to a hand-written computation, the routing rules, the grammar's rules all defined, a repeating stream cut and the server seeing the client leave, ordinary JSON output not cut, a shelf read ahead, slot calls, and the `TNY3` header round trip and refusals. `node js/test/evelyn_inkling_live.js --port <port>` is the same set of questions put to a real server; it prints what the server did with the effort field, a grammar and the slot calls.
+**Tested.** `node js/test/evelyn_inkling_tests.js` (49 checks, a step of `node tests/run_all.js`) runs all of it against a small mock server in the test file that plays llama-server: the request bodies, the effort fields, the repair pass for a wrong number and for an invented source, HTTP errors and a closed port (each reported once), the KV21 switch giving the same letters and margins every time, the margin equal to a hand-written computation, the routing rules, a repeating stream cut and the server seeing the client leave, ordinary JSON output not cut, a shelf read ahead, slot calls, the code loop, the `TNY3` header round trip and refusals, and the three.js verifier on known good code, eleven known faults and an attempt to write a file from inside the checked code (refused by Node's permission model).
 
-**Not measured.** No run against the real Inkling GGUF has been made yet (the live test is written and waits for a server). The chat claimed that the pairing makes answers faster and more accurate, that 40 to 70 percent of queries can stop at the small tiers, that a continuous effort from 0.0 to 0.99 cuts tokens by 2 to 5 times, and that a larger context and a 4,096-entry vocabulary help the assistant. None of these was measured. The small model here is the `TNY2` engine with random test weights (no trained `TINY.BIN` exists), so what a trained router or expander would decide is open. The loop cut was changed from the design: it needs the same 48 letters to have appeared twice before, because a code listing or a JSON list can repeat a line once; `loopRepeats: 1` gives the original rule.
+**Measured on the real Inkling (2026-11-23).** Inkling 2 Mini Q4_K_M on LM Studio's llama.cpp runtime (server build b1-29b52d3), the RTX 3090, context 32768, 8-bit cache, started through the GPU queue. `node js/test/evelyn_inkling_live.js --port <port>` repeats these and passes 6 of 6.
+
+- **Effort.** The words map to `low` 0.2, `medium` 0.7, `high` 0.9 in the system message the template writes. A number in the top-level `reasoning_effort` field is ignored (it becomes 0.9) and an unknown word is HTTP 500. A number works in `chat_template_kwargs.reasoning_effort`, rounded to one decimal (0.35 became 0.3, 0.05 became 0.0). `InklingClient` and the driver send numbers that way. On one short sum the model wrote 51 tokens at 0.0, 78 at `low`, 93 at 0.9: about 1.8 times fewer, on one trivial question, so the chat's "2 to 5 times" is not confirmed.
+- **Grammar.** The server applies a grammar: the output is valid JSON and the sources are only the ids given. It also stops the model thinking, and the answer string was a placeholder (`"..."`) in 7 of 8 runs on two prompts. A minimum length for the string made the model ramble to the token limit, so that option was removed. `grammar_lazy` with a trigger on the answer's start token was ignored by this build. With a grammar on, the stream has no text deltas; the whole text is in `__lmstudio.model_output` of the last event, which the driver reads. For an answer, let the model think and check the cited ids afterwards (`verifyCitationsAgainstHits`).
+- **Loop cut.** A prompt that asks for one sentence forever was cut after 1,166 letters and 4.8 s.
+- **Slots.** `/slots?action=save` answers 501: this server was not started with `--slot-save-path`, so checkpoint and rewind are untested on a real server.
+- **Agent.** A grounded question about the shelf was answered in 4.5 s with the right numbers and a real citation; a sum took no model call.
+
+**Writing three.js code with and without Evelyn.** `node js/test/evelyn_threejs_bench.js --port <port> --trials 2` asks Inkling for three scenes (a spinning cube, a solar system, a low-poly island with instanced trees) in three ways, with the same seeds, and scores every final code with one verifier: it runs the code against the real three r187 in a child process and checks the scene graph (no renderer, no picture). `alone` is one call at effort `high`; `loop` is `js/evelyn_inkling_codeloop.js` with no notes (run the code, send the exact errors back, up to 2 repairs); `notes` is the same loop plus verified three r187 notes retrieved from an `OffsetShelfStore`, at effort `low` as the agent's rule says when notes are found. Results, 6 runs per row:
+
+| Condition | First draft passes | Final passes | Calls per run | Tokens per run (with thinking) | Seconds per run |
+| --- | --- | --- | --- | --- | --- |
+| Inkling alone | 3 of 6 | 3 of 6 | 1.0 | 3,350 | 64 |
+| Evelyn loop, no notes | 5 of 6 | 6 of 6 | 1.2 | 3,177 | 61 |
+| Evelyn loop with notes | 6 of 6 | 6 of 6 | 1.0 | 914 | 18 |
+
+How to read it. The three failures of Inkling alone were two island runs that used all 6,000 tokens thinking at high effort (one never wrote code, one stopped inside the code block) and one solar system with five spheres where four were asked for. The loop's one repaired run was an island whose first draft failed a check. The notes were written by the same hand as the checks, so that row shows what retrieval can do when the right note exists. It is not an unbiased accuracy, and `alone` also differs in effort, not only in help. Six runs a row is a small sample and the 6,000-token limit decides some of the baseline's failures. Inkling here is the same model served by LM Studio's llama.cpp runtime for every row; the LM Studio application window was not used, because loading a model through it skips the GPU queue.
+
+**Not measured.** The chat's other claims: that 40 to 70 percent of queries can stop at the small tiers, and that a larger context and a 4,096-entry vocabulary help the assistant. The small model is the `TNY2` engine with random test weights (no trained `TINY.BIN` exists), so what a trained router or expander would decide is open. The loop cut was changed from the design: it needs the same 48 letters to have appeared twice before, because a code listing or a JSON list can repeat a line once; `loopRepeats: 1` gives the original rule.
 
 ## Reaching back: how old a machine can run it
 
@@ -204,8 +223,8 @@ Evelyn is based on Tiny-2.1's idea of a small language model that answers one le
 - `js/evelyn_stream.js` (layer streaming, JavaScript only) gives the same answers as `Tiny2Model`, letter for letter and byte for byte in the cache, so a machine that cannot hold the whole weight file can still use it.
 
 **Where things are, and what is left out**
-- The micro game demo (a Verlet rope and bots that evolve live on the CPU) is `neon/game_engine_demo.html`, JavaScript only.
-- The C and BASIC editions cover the core (library, engine, tutor, adventure, coding lab). The NEON stack, the Echo and DritchChum pets and the Lab exist only in JavaScript.
+- The micro game demo (a Verlet rope and bots that evolve live on the CPU) is `caldarium/game_engine_demo.html`, JavaScript only.
+- The C and BASIC editions cover the core (library, engine, tutor, adventure, coding lab). The Caldarium, the Echo and DritchChum pets and the Lab exist only in JavaScript.
 
 ## Folders
 
@@ -227,14 +246,14 @@ tests/    run_all.js  bench_evelyn.js  run_conformance.js  conformance.txt  qbi.
 - **`USER.CFG`**: `KEY=value` lines (`NAME`, `MODE`, `PACE`, `XP`, `FB`, `ROOM`, `SOLVED`, `INV`, `MASTERED`, `RECENT`); lists are joined with `|`.
 - **Game packet**: player, buttons, sequence (16 bits), then x, y (units of 1/16) and vx, vy (units of 1/256) as signed 16-bit numbers. **Bot packet**: weight count (16 bits), a 32-bit float scale, one signed byte per weight.
 
-## The NEON stack (`neon/`, added 2026-11-22)
+## The Caldarium (`caldarium/`, added 2026-11-22)
 
-A second, browser-first JavaScript stack builds on the same ideas. It lives in `neon/`, all ES5, no dependencies, Node or browser, and it is separate from the `js/` reference edition (its own `EvelynBackend`, IndexedDB shelves, Web Worker `TNY2`).
+A second, browser-first JavaScript stack builds on the same ideas. It lives in `caldarium/`, all ES5, no dependencies, Node or browser, and it is separate from the `js/` reference edition (its own `EvelynBackend`, IndexedDB shelves, Web Worker `TNY2`).
 
 | File | What it is |
 | --- | --- |
 | `evelyn_backend.js`, `evelyn_cartridges.js` | storage (IndexedDB, fallback), shelves, Worker `TNY2`, SM-2, audio; the `.cart.json` validator, canon tables, sand engine |
-| `evelyn_concourse.html` | the playable hub (open it from a file); `evelyn_neon.html` is the earlier single-file version |
+| `evelyn_concourse.html` | the playable hub (open it from a file); `evelyn_caldarium.html` is the earlier single-file version |
 | `evelyn_evolution.js`, `evelyn_suite_78.js`, `evelyn_suite_integration.js` | 78 cartridges in 15 doors; decks of 24 that adapt to recent lessons and the learner's stated focus |
 | `evelyn_voice_guard.js`, `evelyn_director.js` | runtime AI-tic filter; reactive world state between games and camera framing |
 | `evelyn_frontier.js`, `evelyn_robotics.js`, `evelyn_bot_rx/` | graph memory, grammar decoding and related systems; robot simulator, safety governor, Arduino receiver sketch |
@@ -249,7 +268,7 @@ A second, browser-first JavaScript stack builds on the same ideas. It lives in `
 
 **Shared with the Scar Brand game.** `BocaDeAmourGame_2026-11-21/data/chums/` (`species.json`, `rules.json`) is generated from this module by `BocaDeAmourGame_2026-11-21/tools/build_chums.js`; `tools/test_chums_link.js` there (run by `run_all.js`) fails when the game's data and the module drift apart. The game keeps the plan's Ledger rule as a flag: 52 of the 111 species have a Ledger entity of the same name and are `playable` there (19 Echoes, 33 DritchChums); the rest stay `ledger: null` until the owner rules. Change the care, bond, kin or release rules here and run `node tools/build_chums.js` in the game folder.
 
-**Changes made while placing the NEON code** (each found by running the suites):
+**Changes made while placing the Caldarium code** (each found by running the suites):
 - The ES5 audits in seven test files matched the regular-expression text that does the matching (`=>`); the pattern is now built at run time.
 - `evelyn_suite_78.js`: a wrong-answer choice said "noon" where the suite's canon rule wants 12-hour clocks written out; now "ROOM-P1 12 PM".
 - `evelyn_evolution.js`: a cartridge whose subjects map to the small fixed question banks (The Umbrella Doors: geography plus coding) stalled at 10 items; the deck is now topped up from the generators that never run out, so every cartridge reaches 24.
@@ -258,42 +277,42 @@ A second, browser-first JavaScript stack builds on the same ideas. It lives in `
 - `evelyn_robotics.js`: the PID controller now stops integrating while the output is pinned at a limit (anti-windup); `evelyn_robotics_tests.js` uses a slower integral gain (0.05), because with 0.15 the loop still overshot by 5 percent at 4 seconds.
 - `evelyn_net.js` is exported for Node as well as the browser; `evelyn_concourse.html` loads every module and mounts the portrait, doctor, hub, director, voice guard, charter gate and Chum Loft, rebuilt when the profile changes; `evelyn_test_runner.html` runs every suite.
 
-**Checked:** `node tests/run_all.js` runs the nine Node suites of `neon/` (17, 6, 7, 8, 8, 6, 6, 4 and 10 checks) and `tests/check_neon_browser.py`, which starts its own server and drives real Brave: all suites in the page (64 checks; the eight Node-only audits are skipped there), the concourse (15 doors, 78 cartridges, portrait, loft, adopting an Echo and a DritchChum, chat commands with either word, opening a cartridge, the loft surviving a reload through IndexedDB), and the other two pages load without errors.
+**Checked:** `node tests/run_all.js` runs the nine Node suites of `caldarium/` (17, 6, 7, 8, 8, 6, 6, 4 and 10 checks) and `tests/check_caldarium_browser.py`, which starts its own server and drives real Brave: all suites in the page (64 checks; the eight Node-only audits are skipped there), the concourse (15 doors, 78 cartridges, portrait, loft, adopting an Echo and a DritchChum, chat commands with either word, opening a cartridge, the loft surviving a reload through IndexedDB), and the other two pages load without errors.
 
-**Not checked, and left:** the Arduino sketch (`neon/evelyn_bot_rx/`) was not compiled and the Web Serial robot bridge never touched hardware; no phone, old browser (IE or 2012 builds) or real `TINY.BIN`; the speech and sound paths were not listened to; the C and BASIC editions have no chum system (the NEON stack is JavaScript only); the frontier, robotics and sentinel modules are tested but have no screen in the concourse; the Kaizostria cartridge plan in `cartridges/` still calls the phonics sound-creatures "Echoes" with no raising loop, which fits the new meaning but is not yet linked to the loft.
+**Not checked, and left:** the Arduino sketch (`caldarium/evelyn_bot_rx/`) was not compiled and the Web Serial robot bridge never touched hardware; no phone, old browser (IE or 2012 builds) or real `TINY.BIN`; the speech and sound paths were not listened to; the C and BASIC editions have no chum system (the Caldarium is JavaScript only); the frontier, robotics and sentinel modules are tested but have no screen in the concourse; the Kaizostria cartridge plan in `cartridges/` still calls the phonics sound-creatures "Echoes" with no raising loop, which fits the new meaning but is not yet linked to the loft.
 
-## The NEON stack, round 2
+## The Caldarium, round 2
 
-This round adds 41 code files, all in `neon/`, each with its own tests. The changes made while placing them are listed below (mostly the ES5-audit fix in test files). `CREDITS.md` lists, with links and licences, the papers, repositories, posts and pages the code drew on.
+This round adds 41 code files, all in `caldarium/`, each with its own tests. The changes made while placing them are listed below (mostly the ES5-audit fix in test files). `CREDITS.md` lists, with links and licences, the papers, repositories, posts and pages the code drew on.
 
 | Module (all ES5, no network) | What it does | Tests |
 | --- | --- | --- |
 | `evelyn_game_xray.js`, `evelyn_game_xray_gen6.js` | take apart a game file on the device: NES, Game Boy, WAD, DOS, ISO, CHIP-8, Mega Drive, N64, PS1, GBA, Dreamcast, GameCube, PS2 (6502 and MIPS listings, tile decoding, entropy map) | 5 + 6 |
 | `evelyn_asset_studio.js` | sprite animator, tilemap swap, 2bpp encoder, IPS patcher, palette contrast audit | 6 |
 | `evelyn_3d.js` | CPU z-buffer rasterizer, `.OBJ` reader and writer, 2.5D raycaster | 6 |
-| `evelyn_code_forge.js`, `evelyn_ast_ide.js` | MiniGit, MiniSQL, 6502 assembler and VM, app exporter; AST linter, autocomplete, safe rename, Big-O profile | 5 + 5 (in `turbo`) |
+| `evelyn_code_forge.js`, `evelyn_ast_ide.js` | MiniHistory, MiniSQL, 6502 assembler and VM, app exporter; AST linter, autocomplete, safe rename, Big-O profile | 5 + 5 (in `turbo`) |
 | `evelyn_wasm_accel.js`, `evelyn_code_engine.js`, `evelyn_bridge.js` | hand-written WebAssembly `i8_dot`, BPE, RoPE, fill-in-the-middle, prefix cache; the optional companion server | 5 (`turbo`) |
 | `evelyn_hybrid_rag.js`, `evelyn_code_power.js`, `evelyn_lang_core.js`, `evelyn_manual_compiler.js` | code retrieval; safe patcher and call-graph slicer; a four-family language core; manual-to-JSON compiler | 5, 5, 5, 4 |
 | `evelyn_paper_boost.js`, `2`, `3`, `evelyn_window_engine.js`, `evelyn_late2026_core.js`, `evelyn_agent_os.js`, `evelyn_sovereign_local.js` | the 2026 paper mechanisms, the looped and sliding-window engine, eight small-hardware adaptations, eight agent-platform pillars, backend auto-benchmark and a LAN layer pool (simulation only) | 7, 6, 7, 6, 7, 6, 5 |
-| **`evelyn_lab.js`** (new) | the screen for the modules above: the **Lab** view of the concourse (button 5) with Game X-Ray, Asset Studio and IPS, a 3D viewer, SQL and code check, and a module status list | `check_neon_browser.py` section 2b |
+| **`evelyn_lab.js`** (new) | the screen for the modules above: the **Lab** view of the concourse (button 5) with Game X-Ray, Asset Studio and IPS, a 3D viewer, SQL and code check, and a module status list | `check_caldarium_browser.py` section 2b |
 
 **Changes made while placing them** (each found by a test or by reading the file):
 - Same ES5-audit fix as round 1 in seven more test files: the pattern that looks for `=>` no longer matches its own text.
 - `evelyn_voice_guard.js`: "isn't just about" and the rule-of-three words ending in "sion", "ance" and "ence" were missed.
 - `evelyn_sovereign_local.js`: the backend benchmark read a whole-millisecond clock, so two fast kernels both read 0 ms and the first listed won; it now uses the high-resolution clock, three timings and longer runs when a timing is under 5 ms.
 - `evelyn_bridge.js` (the one module that can run code, so it was reviewed line by line): it binds only to 127.0.0.1 and never starts by itself (requiring it opens no port; only `node evelyn_bridge.js` does). Added: a per-start token for every `/api` call except `/api/health`, Host and Origin checks, JSON-only bodies, and `Cross-Origin-Resource-Policy`; a write into a missing folder no longer throws inside the request handler and ends the process; only `.html .js .css .json .bin` are served as static files; a program it runs gets a small environment (no keys or tokens from the server's); a link inside the workspace that leaves it is refused. `evelyn_turbo_tests.js` tests each of these, including a cross-site page, a rebinding host name and a link out of the workspace.
-- `tests/run_all.js` runs the 17 new suites and the master runner `neon/evelyn_run_all_tests.js`. The browser check's "at least 150 checks" floor was stale; it is 140 now (143 measured) and it also checks that all 19 suites that run on load announced themselves.
+- `tests/run_all.js` runs the 17 new suites and the master runner `caldarium/evelyn_run_all_tests.js`. The browser check's "at least 150 checks" floor was stale; it is 140 now (143 measured) and it also checks that all 19 suites that run on load announced themselves.
 - `evelyn_test_runner.html` loads every module and suite; `evelyn_concourse.html` loads `evelyn_lab.js`.
 
 **Safety review of the modules that reach outside the page.** None of the 41 files makes a network call, uses `eval`, `new Function` or `document.write` (checked by search); only the bridge touches the file system or runs programs, and it is described above. The LAN layer pool is an in-memory simulation with no sockets, so it is off and cannot reach a network. The IPS patcher works on bytes of files the learner picks, never changes the original, checks every record against the file size, and ships no ROM or disc data (the tests use made-up files). The Lab page was checked to request nothing outside its own server.
 
-**Checked (2026-11-22):** `node tests/run_all.js`: every step PASS. That includes `neon/evelyn_run_all_tests.js` (27 suites, 0 failed, 0 missing) and the real-browser check (143 checks in the test page, the Lab view's 11 checks, no page errors, no outside requests). The new suites were also run one by one.
+**Checked (2026-11-22):** `node tests/run_all.js`: every step PASS. That includes `caldarium/evelyn_run_all_tests.js` (27 suites, 0 failed, 0 missing) and the real-browser check (143 checks in the test page, the Lab view's 11 checks, no page errors, no outside requests). The new suites were also run one by one.
 
 **Not checked, and left:** no real console ROMs, discs, `.OBJ` models or `.ips` patches were tried (only made-up files and the file pickers by script, not a person); the bridge was run only in tests and was never exposed to a network, and `tcc` and `python3` runs through it were not tried; no hardware (robot, car, microcontroller) was touched; no phone, old browser or real `TINY.BIN`; the Lab's file pickers were not used with large files; the LAN pool has no real transport; the paper and product names in `CREDITS.md` were taken from the research notes the code was written from and were not checked one by one; there are no C or BASIC editions of any round-2 module.
 
 **Coding shelves (2026-11-22).** `sh tools/fetch_coding_refs.sh <folder>` downloads open-licence coding references (MDN JavaScript, Learn X in Y Minutes, SICP, Eloquent JavaScript, javascript.info, the Node.js and Python 3.13 docs, the Rust book, Think Python) and `node tools/build_shelves.js <folder>` cuts them into short text entries that load with the "+TXT Shelf" button (43 files, about 154,000 entries, 19 MB; searching them through Evelyn's own shelf code was tried). The downloads are not part of this repository; their licences and the terms that apply are in `CREDITS.md` section 5. Evelyn does not train on them: the shelves are indexed text, and the `TNY2` model still needs its own `TINY.BIN`.
 
-**Book games (2026-11-23).** `neon/evelyn_bookgames.js` turns a book a learner has read into a game for the concourse player. The book can be a `.txt` file, text pasted in, a book already kept in the archive, or a shelf. The game is an ordinary `.cart.json` and is checked by the real cartridge validator before it is returned. Questions are cut from the book itself: who said a line, which name fills a gap, which word is missing, which sentence mentions an idea, which of three comes first. Each right answer is checked against the text in the tests, and a kid-safe filter keeps out violent words and anything the canon rules reject. The learner chooses by **style** (arcade, detective, quiz show), by **focus** (the characters, the ideas and words, or both), through a **preset**, or in **their own words** ("a space battle about the characters" makes an arcade game about the characters). The same seed always makes the same game. Find it in the concourse under **Lab > Book Game**; loading a book with "+TXT Shelf" now also keeps the whole text in the archive (a new IndexedDB store, `books`, database version 2) and offers to make a game from it. A shelf keeps only the first 180 characters of each paragraph, so a full book makes a better game than a shelf does. Tests: `neon/evelyn_bookgames_tests.js` (10 checks, including real books and Evelyn's own shelf loader when the reading library is present) and section 2b of `tests/check_neon_browser.py`.
+**Book games (2026-11-23).** `caldarium/evelyn_bookgames.js` turns a book a learner has read into a game for the concourse player. The book can be a `.txt` file, text pasted in, a book already kept in the archive, or a shelf. The game is an ordinary `.cart.json` and is checked by the real cartridge validator before it is returned. Questions are cut from the book itself: who said a line, which name fills a gap, which word is missing, which sentence mentions an idea, which of three comes first. Each right answer is checked against the text in the tests, and a kid-safe filter keeps out violent words and anything the canon rules reject. The learner chooses by **style** (arcade, detective, quiz show), by **focus** (the characters, the ideas and words, or both), through a **preset**, or in **their own words** ("a space battle about the characters" makes an arcade game about the characters). The same seed always makes the same game. Find it in the concourse under **Lab > Book Game**; loading a book with "+TXT Shelf" now also keeps the whole text in the archive (a new IndexedDB store, `books`, database version 2) and offers to make a game from it. A shelf keeps only the first 180 characters of each paragraph, so a full book makes a better game than a shelf does. Tests: `caldarium/evelyn_bookgames_tests.js` (10 checks, including real books and Evelyn's own shelf loader when the reading library is present) and section 2b of `tests/check_caldarium_browser.py`.
 
 **Reading library.** `python tools/fetch_reading_refs.py <folder>` fetches public-domain and freely readable texts (a Gutenberg book is accepted only when its own title header matches; a page that answers 403 or 429 is skipped, never worked around) and `node tools/build_shelves.js <folder>` turns them into shelves. What was fetched and what could not be is in `CREDITS.md` section 5b.
 

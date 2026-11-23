@@ -59,7 +59,7 @@ step("BASIC names avoid keywords", function () { return node("tools/check_bas_na
 step("no stray control characters", controlCharScan);
 step("JavaScript unit tests", function () { return node("js/test/test_evelyn.js"); });
 step("JavaScript layer-streaming tests", function () { return node("js/test/evelyn_stream_tests.js"); });
-step("JavaScript Inkling agent, cascade, copilot and TNY3 header tests", function () { return node("js/test/evelyn_inkling_tests.js"); });
+step("JavaScript Inkling agent, cascade, driver and TNY3 header tests", function () { return node("js/test/evelyn_inkling_tests.js"); });
 step("JavaScript speed-work parity tests", function () { return node("js/test/evelyn_fast_tests.js"); });
 step("benchmark suite runs and agrees with the old code (quick)", function () {
   var r = run(NODE, [path.join(ROOT, "tests", "bench_evelyn.js"), "--quick", "--only=1,2,4,5"]);
@@ -91,7 +91,7 @@ step("cross-edition conformance", function () {
 });
 step("command line programs", function () { return node("tests/test_clis.js"); });
 
-/* The NEON stack (neon/): concourse, 78 cartridges, adaptive evolution, doctor, guard, director, frontier,
+/* The CALDARIUM stack (caldarium/): concourse, 78 cartridges, adaptive evolution, doctor, guard, director, frontier,
    robotics, sentinel, charter and the Chum Loft (Echoes and DritchChums). Each suite runs in its own process. */
 step("chum species data is current", function () {
   var db = path.resolve(ROOT, "..", "CharacterDatabase", "database", "characters.json");
@@ -106,15 +106,15 @@ step("chum species data is current", function () {
  "evelyn_lang_core_tests", "evelyn_manual_compiler_tests", "evelyn_paper_boost_tests", "evelyn_paper_boost2_tests",
  "evelyn_paper_boost3_tests", "evelyn_window_engine_tests", "evelyn_late2026_tests", "evelyn_agent_os_tests",
  "evelyn_sovereign_local_tests", "evelyn_bookgames_tests"].forEach(function (name) {
-  step("neon: " + name.replace("evelyn_", ""), function () {
-    var r = run(NODE, [path.join(ROOT, "neon", name + ".js")], path.join(ROOT, "neon"));
+  step("caldarium: " + name.replace("evelyn_", ""), function () {
+    var r = run(NODE, [path.join(ROOT, "caldarium", name + ".js")], path.join(ROOT, "caldarium"));
     var lines = r.out.split("\n");
     var summary = lines.filter(function (l) { return /\d+ passed/.test(l); }).pop() || "";
     return { status: r.code === 0 ? "PASS" : "FAIL", note: summary.replace(/=/g, "").trim(), detail: r.code === 0 ? "" : r.out.slice(-3000) };
   });
 });
-step("neon: the chat's own master runner (27 suites)", function () {
-  var r = run(NODE, [path.join(ROOT, "neon", "evelyn_run_all_tests.js")], path.join(ROOT, "neon"));
+step("caldarium: the chat's own master runner (27 suites)", function () {
+  var r = run(NODE, [path.join(ROOT, "caldarium", "evelyn_run_all_tests.js")], path.join(ROOT, "caldarium"));
   var line = r.out.split("\n").filter(function (l) { return /TOTAL:/.test(l); }).pop() || "";
   var ok = r.code === 0 && /27 passed, 0 failed, 0 missing/.test(line);
   return { status: ok ? "PASS" : "FAIL", note: line.replace(/=/g, "").trim(), detail: ok ? "" : r.out.slice(-3000) };
@@ -126,12 +126,12 @@ step("Scar Brand game chum data is current", function () {
   var last = r.out.split("\n").filter(function (l) { return /\d+ passed/.test(l); }).pop() || "";
   return { status: r.code === 0 ? "PASS" : "FAIL", note: last.replace(/=/g, "").trim(), detail: r.code === 0 ? "" : r.out.slice(-3000) };
 });
-step("neon: real browser (Brave)", function () {
+step("caldarium: real browser (Brave)", function () {
   var brave = "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe";
   if (!fs.existsSync(brave)) return { status: "SKIP", note: "Brave not found" };
   var probe = run("python", ["-c", "from playwright.sync_api import sync_playwright"]);
   if (probe.code !== 0) return { status: "SKIP", note: "Playwright for Python not installed" };
-  var r = run("python", [path.join(ROOT, "tests", "check_neon_browser.py")]);
+  var r = run("python", [path.join(ROOT, "tests", "check_caldarium_browser.py")]);
   return { status: r.code === 0 ? "PASS" : "FAIL", note: r.out.trim().split("\n").pop(), detail: r.code === 0 ? "" : r.out.slice(-3000) };
 });
 

@@ -235,7 +235,7 @@
     chooseConfig: function (taskKind, isSmallEdit) {
       var spatial = /3d|webgl|three|shader|physics|robotics|kinematics/i.test(String(taskKind || ""));
       return {
-        weightPrecision: spatial ? "INT8_OR_Q4_SAFE" : "BITNET_I2S",
+        weightPrecision: spatial ? "INT8_OR_Q4_SAFE" : "TERNARY_I2S",
         kvPrecision: spatial ? "FP32_OR_BF16_SAFE" : "INT8_ROW",
         recurrentLoops: isSmallEdit ? 1 : (spatial ? 4 : 2),
         runVisualInspector: spatial,

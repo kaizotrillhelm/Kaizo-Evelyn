@@ -201,7 +201,7 @@
     s = s.replace(/```[a-z]*\n?/gi, "").replace(/\*\*([^*]+)\*\*/g, "$1");
 
     /* 2. Strip URL tracking leaks & internal citation tokens */
-    s = s.replace(/[?&](?:utm_source|referrer)=(?:chatgpt\.com|openai|copilot\.com|grok\.com)\b/gi, "");
+    s = s.replace(/[?&](?:utm_source|referrer)=(?:chatgpt\.com|openai|driver\.com|grok\.com)\b/gi, "");
     s = s.replace(/contentReference\[[^\]]*\]/g, "");
 
     /* 3. Strip chatbot openers, closers, formal transitions, meta-hedges */

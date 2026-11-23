@@ -29,15 +29,15 @@
     done();
   });
 
-  /* 2. ExoLayerPool splits 12 layers across 3 heterogeneous cheap devices + INT8 wire hops */
-  test("ExoLayerPool: Partitions layers across old LAN devices, handles dropout & quantizes hops", function (done) {
+  /* 2. LanLayerPool splits 12 layers across 3 heterogeneous cheap devices + INT8 wire hops */
+  test("LanLayerPool: Partitions layers across old LAN devices, handles dropout & quantizes hops", function (done) {
     var peers = [
       { id: "old_laptop_1", freeRamMB: 1024, alive: true },
       { id: "budget_phone", freeRamMB: 512,  alive: true },
       { id: "pi_zero",      freeRamMB: 512,  alive: true },
       { id: "dead_tablet",  freeRamMB: 2048, alive: false }
     ];
-    var part = Sov.ExoLayerPool.partitionLayers(12, peers);
+    var part = Sov.LanLayerPool.partitionLayers(12, peers);
     assert(part.ok && part.shards.length === 3, "Expected 3 active peer shards (dead_tablet skipped)");
     assertEq(part.shards[0].startLayer, 0, "First shard must start at layer 0");
     assertEq(part.shards[2].endLayer, 12, "Last shard must end at layer 12");
@@ -45,7 +45,7 @@
 
     /* Run pipeline pass on 96-wide vector -> 2 LAN hops * (96 + 4) = 200 wire bytes total */
     var v0 = new Float32Array(96); v0[0] = 1.0;
-    var pipe = Sov.ExoLayerPool.runPipeline(v0, part.shards, function (vec) {
+    var pipe = Sov.LanLayerPool.runPipeline(v0, part.shards, function (vec) {
       var nx = new Float32Array(vec.length);
       for (var i = 0; i < vec.length; i++) nx[i] = vec[i] + 0.1;
       return nx;
@@ -75,8 +75,8 @@
     done();
   });
 
-  /* 4. SovereignManifest detects silent upstream weight changes + LocalTranscriptPipe cleans Whisper text */
-  test("SovereignManifest & LocalTranscriptPipe: Detects 1-byte silent change and cleans Whisper transcripts", function (done) {
+  /* 4. SovereignManifest detects silent upstream weight changes + LocalTranscriptPipe cleans speech text */
+  test("SovereignManifest & LocalTranscriptPipe: Detects 1-byte silent change and cleans speech transcripts", function (done) {
     var man = new Sov.SovereignManifest();
     var weights = new Uint8Array([10, 20, 30, 40, 50]);
     man.pin("TINY.BIN", weights, "2.1.0");
@@ -86,7 +86,7 @@
     assert(!man.verify("TINY.BIN", silentlyChanged).ok, "1-byte silent modification must be caught");
 
     var clean = Sov.LocalTranscriptPipe.cleanTranscript("[BLANK_AUDIO] um, water boils at, uh, 100 degrees C. [NOISE]");
-    assertEq(clean, "Water boils at, 100 degrees C.", "Whisper transcript cleanup mismatch: " + clean);
+    assertEq(clean, "Water boils at, 100 degrees C.", "Speech transcript cleanup mismatch: " + clean);
     done();
   });
 

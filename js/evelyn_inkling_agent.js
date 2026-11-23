@@ -40,7 +40,23 @@
     this.lastUsage = null;                  /* the usage block of the last reply (prompt and completion tokens), when the server sends it */
   }
 
-  /* effort is "low", "medium", "high" or a number from 0 to 0.99, sent as reasoning_effort */
+  /* The effort of a request. A word ("low", "medium", "high") goes in the reasoning_effort field. A number goes in
+     chat_template_kwargs.reasoning_effort, because a server that renders the chat template (LM Studio's llama.cpp, the
+     Inkling template) ignores a number in the top-level field and uses 0.9 (measured 2026-11-23, see README). */
+  function effortFields(effort, extra) {
+    var body = {};
+    if (typeof effort === "number") {
+      var kw = {}, k;
+      if (extra && extra.chat_template_kwargs) for (k in extra.chat_template_kwargs) kw[k] = extra.chat_template_kwargs[k];
+      kw.reasoning_effort = effort;
+      body.chat_template_kwargs = kw;
+    } else {
+      body.reasoning_effort = effort === undefined || effort === null ? "low" : effort;
+    }
+    return body;
+  }
+
+  /* effort is "low", "medium", "high" or a number from 0 to 0.99 */
   InklingClient.prototype.chat = function (messages, effort, cb) {
     var self = this, finished = false;
     function done(err, text) { if (finished) return; finished = true; cb(err, text); }
@@ -49,11 +65,11 @@
       model: this.model,
       messages: messages,
       temperature: this.temperature,
-      max_tokens: this.maxTokens,
-      reasoning_effort: effort === undefined || effort === null ? "low" : effort
+      max_tokens: this.maxTokens
     };
-    var k;
+    var k, ef = effortFields(effort, this.extra);
     for (k in this.extra) if (Object.prototype.hasOwnProperty.call(this.extra, k)) body[k] = this.extra[k];
+    for (k in ef) body[k] = ef[k];
     this.lastRequest = body;
     var payload = JSON.stringify(body);
     var req = http.request({
@@ -123,6 +139,23 @@
     return bad;
   }
 
+  /* [shelf#id] citations of the answer that are not among the hits: an invented source. This is what the grammar of
+     evelyn_gguf_driver.js was meant to guarantee; on Inkling 2 Mini a grammar stops the model thinking, so the answer is
+     written freely and the citations are checked afterwards. */
+  function verifyCitationsAgainstHits(answer, hits) {
+    var ok = Object.create(null), i, bad = [];
+    for (i = 0; i < hits.length; i++) ok[hits[i].shelf + "#" + hits[i].id] = true;
+    var re = /\[([^\]]*#\d[^\]]*)\]/g, m, parts, k, id;
+    while ((m = re.exec(String(answer || ""))) !== null) {
+      parts = m[1].split(/[,;|]/);
+      for (k = 0; k < parts.length; k++) {
+        id = parts[k].replace(/^\s+|\s+$/g, "");
+        if (/^[A-Za-z0-9_-]+#\d+$/.test(id) && !ok[id] && bad.indexOf(id) < 0) bad.push(id);
+      }
+    }
+    return bad;
+  }
+
   /* ======================================================================
      3. THE AGENT
      ====================================================================== */
@@ -182,8 +215,8 @@
         cb(null, { answer: draft, path: "Inkling (" + effort + ", ungrounded)", verified: false, inklingCalled: true, hits: 0 });
         return;
       }
-      var bad = verifyNumbersAgainstHits(draft, hits, q);
-      if (bad.length === 0) {
+      var bad = verifyNumbersAgainstHits(draft, hits, q), badCites = verifyCitationsAgainstHits(draft, hits);
+      if (bad.length === 0 && badCites.length === 0) {
         cb(null, { answer: draft, path: "Evelyn RAG + Inkling (" + effort + ")", verified: true, inklingCalled: true, hits: hits.length });
         return;
       }
@@ -191,20 +224,22 @@
         { role: "assistant", content: draft },
         {
           role: "user",
-          content: "Checker warning: number(s) [" + bad.join(", ") + "] do not appear in the verified excerpts. " +
-            "Rewrite concisely using only verified numbers, or state what is missing."
+          content: "Checker warning: " +
+            (bad.length ? "number(s) [" + bad.join(", ") + "] do not appear in the verified excerpts. " : "") +
+            (badCites.length ? "source(s) [" + badCites.join(", ") + "] are not among the excerpts. " : "") +
+            "Rewrite concisely using only verified numbers and sources, or state what is missing."
         }
       ]);
       self.inkling.chat(repair, "low", function (err2, fixed) {
         if (err2) {
-          cb(null, { answer: contextLines.join("\n"), path: "Clamped to Evelyn Source", verified: true, inklingCalled: true, hits: hits.length, badNumbers: bad });
+          cb(null, { answer: contextLines.join("\n"), path: "Clamped to Evelyn Source", verified: true, inklingCalled: true, hits: hits.length, badNumbers: bad, badCitations: badCites });
           return;
         }
-        var still = verifyNumbersAgainstHits(fixed, hits, q);
+        var still = verifyNumbersAgainstHits(fixed, hits, q).concat(verifyCitationsAgainstHits(fixed, hits));
         cb(null, {
           answer: still.length === 0 ? fixed : contextLines.join("\n"),
           path: still.length === 0 ? "Evelyn RAG + Inkling (self-corrected)" : "Clamped to Evelyn Source",
-          verified: true, inklingCalled: true, hits: hits.length, badNumbers: bad, stillBad: still
+          verified: true, inklingCalled: true, hits: hits.length, badNumbers: bad, badCitations: badCites, stillBad: still
         });
       });
     });
@@ -214,7 +249,9 @@
     InklingClient: InklingClient,
     EvelynInklingAgent: EvelynInklingAgent,
     verifyNumbersAgainstHits: verifyNumbersAgainstHits,
-    numbersOf: numbersOf
+    verifyCitationsAgainstHits: verifyCitationsAgainstHits,
+    numbersOf: numbersOf,
+    effortFields: effortFields
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.EvelynInkling = API;

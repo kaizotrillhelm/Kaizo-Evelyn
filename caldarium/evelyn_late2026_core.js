@@ -6,7 +6,7 @@
    5. LEASHGovernor         (Lease-Enforced Agentic Safety Harness + deterministic sensor commit gate)
    6. WorktreeTraceHealer   (Parallel virtual worktrees + temporal commit-why graph + trace-to-patch)
    7. SurgicalFeatureEditor (Orthogonal feature ablation & dialing inside residual vectors)
-   8. MCPA2ABus             (Local JSON-RPC MCP tool registry + A2A capability delegation)
+   8. AgentMessageBus             (Local JSON-RPC MCP tool registry + A2A capability delegation)
    Pure ES5. Zero dependencies. Runs in Browser and Node.js. */
 (function (root) {
   "use strict";
@@ -17,7 +17,7 @@
   }
 
   /* =========================================================================
-     1. MID-TASK STEERABLE PLANNER (GEMINI 4 NEON STEERABILITY PATTERN)
+     1. MID-TASK STEERABLE PLANNER (STEERABLE-PLANNING PATTERN)
      ========================================================================= */
   function SteerablePlanner(steps, initialConstraints) {
     this.steps = (steps || []).slice(0); // [{ id, run(ctx, constraints) -> val }]
@@ -271,17 +271,17 @@
   /* =========================================================================
      8. LOCAL OFFLINE MCP + A2A PROTOCOL BUS (JSON-RPC TOOL & AGENT DISCOVERY)
      ========================================================================= */
-  function MCPA2ABus() {
+  function AgentMessageBus() {
     this.tools = Object.create(null);
     this.agents = Object.create(null);
   }
-  MCPA2ABus.prototype.registerTool = function (name, desc, handler) {
+  AgentMessageBus.prototype.registerTool = function (name, desc, handler) {
     this.tools[name] = { name: name, description: desc, handler: handler };
   };
-  MCPA2ABus.prototype.registerAgent = function (id, capabilities, handler) {
+  AgentMessageBus.prototype.registerAgent = function (id, capabilities, handler) {
     this.agents[id] = { id: id, capabilities: capabilities.slice(0), handler: handler };
   };
-  MCPA2ABus.prototype.rpc = function (req) {
+  AgentMessageBus.prototype.rpc = function (req) {
     var m = req && req.method, p = (req && req.params) || {};
     if (m === "tools/list") {
       var tList = [];
@@ -319,6 +319,6 @@
     LEASHGovernor: LEASHGovernor,
     WorktreePool: WorktreePool,
     SurgicalFeatureEditor: SurgicalFeatureEditor,
-    MCPA2ABus: MCPA2ABus
+    AgentMessageBus: AgentMessageBus
   };
 })(typeof window !== "undefined" ? window : global);

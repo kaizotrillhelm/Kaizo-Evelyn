@@ -99,7 +99,7 @@
   });
 
   /* 6. Parallel Worktrees + Temporal Repo Graph + Surgical Feature Ablation + MCP/A2A Bus */
-  test("WorktreePool, SurgicalFeatureEditor & MCPA2ABus: Races worktrees, ablates feature orthogonally & routes RPC", function (done) {
+  test("WorktreePool, SurgicalFeatureEditor & AgentMessageBus: Races worktrees, ablates feature orthogonally & routes RPC", function (done) {
     var pool = new L26.WorktreePool({ "math.js": "function dbl(x){return x+1;}" });
     pool.recordSafeguardNote("math.js", "dbl", "Keep finite number guard for DOS");
     assertEq(pool.lookupSafeguards("math.js", "dbl").length, 1, "Temporal safeguard note missing");
@@ -121,7 +121,7 @@
     assert(Math.abs(residualDot) < 1e-5, "Orthogonal feature ablation left residual: " + residualDot);
 
     /* Local MCP + A2A bus */
-    var bus = new L26.MCPA2ABus();
+    var bus = new L26.AgentMessageBus();
     bus.registerTool("sum", "Add a+b", function (a) { return a.x + a.y; });
     bus.registerAgent("obd_echo", ["obd2", "repair"], function (t) { return "Checked " + t.code; });
     assertEq(bus.rpc({ method: "tools/call", params: { name: "sum", args: { x: 8, y: 9 } } }).result, 17, "MCP tool call failed");

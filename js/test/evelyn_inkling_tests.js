@@ -1,4 +1,4 @@
-/* evelyn_inkling_tests.js - the Inkling agent, the KV21 cascade and the llama-server copilot, against a mock server.
+/* evelyn_inkling_tests.js - the Inkling agent, the KV21 cascade and the llama-server driver, against a mock server.
    node js/test/evelyn_inkling_tests.js
    No model and no GPU: the "server" is a small http server in this file that plays the part of llama-server
    (/v1/chat/completions, /completion with server-sent events, /slots). The live run against the real Inkling GGUF is
@@ -13,7 +13,7 @@
   var S = require("../evelyn_stream.js");
   var A = require("../evelyn_inkling_agent.js");
   var C = require("../evelyn_cascade.js");
-  var G = require("../evelyn_gguf_copilot.js");
+  var G = require("../evelyn_gguf_driver.js");
 
   var tests = [];
   function test(name, fn) { tests.push({ name: name, fn: fn }); }
@@ -112,6 +112,7 @@
           res.on("close", function () { clearInterval(timer); });
           return;
         }
+        if (m.rawFrames) { m.rawFrames.forEach(function (f) { res.write("data: " + JSON.stringify(f) + "\n\n"); }); res.end(); return; }
         var list = m.sse || [], i = 0;
         (function pump() {
           if (i >= list.length) { res.write("data: [DONE]\n\n"); res.end(); return; }
@@ -328,8 +329,9 @@
       c.chat([{ role: "user", content: "x" }], 0.35, guard(end, function (err) {
         assert(!err, String(err));
         var b = m.bodies[0];
-        assertEq(b.reasoning_effort, 0.35); assertEq(b.max_tokens, 99); assertEq(b.temperature, 0.7);
-        assertEq(b.chat_template_kwargs.enable_thinking, false);
+        assertEq(b.reasoning_effort, undefined, "a number is not sent in the top-level field (the server would ignore it)");
+        assertEq(b.chat_template_kwargs.reasoning_effort, 0.35, "a number goes in chat_template_kwargs"); assertEq(b.max_tokens, 99); assertEq(b.temperature, 0.7);
+        assertEq(b.chat_template_kwargs.enable_thinking, false, "the caller's own kwargs are kept");
         c.chat([{ role: "user", content: "x" }], undefined, guard(end, function (err2) {
           assert(!err2); assertEq(m.bodies[1].reasoning_effort, "low", "no effort given means low");
           end();
@@ -523,7 +525,7 @@
   });
 
   /* ======================================================================
-     THE COPILOT
+     THE DRIVER
      ====================================================================== */
   test("grammar: the citations are exactly the shelf ids that were found, nothing else", function (done) {
     var g = G.buildGroundedGrammar([{ shelf: "health", id: 0 }, { shelf: "caldera", id: 7 }]);
@@ -557,14 +559,14 @@
 
   test("stream: tokens arrive in order, the callback runs once, onToken sees every piece", function (done) {
     withMock(function (m) { m.sse = ["Hello", ", ", "world", "."]; }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port }), seen = [], calls = 0;
-      cp.streamWithCopilot({ prompt: "say hi", effort: 0.1, slotId: 2, grammar: "root ::= x", maxTokens: 20, onToken: function (t) { seen.push(t); } }, guard(end, function (err, r) {
+      var cp = new G.EvelynInklingDriver({ port: m.port }), seen = [], calls = 0;
+      cp.streamWithDriver({ prompt: "say hi", effort: 0.1, slotId: 2, grammar: "root ::= x", maxTokens: 20, onToken: function (t) { seen.push(t); } }, guard(end, function (err, r) {
         calls++;
         assert(!err, String(err));
         assertEq(r.text, "Hello, world."); assertEq(r.aborted, null); assertEq(r.events, 4); assertEq(seen.join(""), "Hello, world.");
         var b = m.bodies[0];
         assertEq(m.paths[0], "/completion"); assertEq(b.prompt, "say hi"); assertEq(b.n_predict, 20); assertEq(b.id_slot, 2);
-        assertEq(b.cache_prompt, true); assertEq(b.stream, true); assertEq(b.reasoning_effort, 0.1); assertEq(b.grammar, "root ::= x");
+        assertEq(b.cache_prompt, true); assertEq(b.stream, true); assertEq(b.chat_template_kwargs.reasoning_effort, 0.1); assertEq(b.reasoning_effort, undefined); assertEq(b.grammar, "root ::= x");
         setTimeout(function () { assertEq(calls, 1, "callback count"); end(); }, 40);
       }));
     }, done);
@@ -572,8 +574,8 @@
 
   test("stream, chat endpoint: messages go out, reasoning and answer pieces are both read, [DONE] is ignored", function (done) {
     withMock(function (m) { m.sse = [{ text: "let me think. ", kind: "think" }, { text: "The answer", kind: "text" }, " is 4."]; }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port });
-      cp.streamWithCopilot({ messages: [{ role: "user", content: "2+2?" }], effort: "low" }, guard(end, function (err, r) {
+      var cp = new G.EvelynInklingDriver({ port: m.port });
+      cp.streamWithDriver({ messages: [{ role: "user", content: "2+2?" }], effort: "low" }, guard(end, function (err, r) {
         assert(!err, String(err));
         assertEq(m.paths[0], "/v1/chat/completions"); assertEq(m.bodies[0].messages[0].content, "2+2?"); assertEq(m.bodies[0].prompt, undefined);
         assertEq(m.bodies[0].max_tokens, 512); assertEq(m.bodies[0].reasoning_effort, "low");
@@ -586,8 +588,8 @@
   test("stream: a repeating thought is cut, the server sees the client go, the callback runs once", function (done) {
     var phrase = "Perhaps the cause is the billing rounding, so I should check it again. ";
     withMock(function (m) { m.endless = phrase; }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port }), calls = 0;
-      cp.streamWithCopilot({ prompt: "debug" }, guard(end, function (err, r) {
+      var cp = new G.EvelynInklingDriver({ port: m.port }), calls = 0;
+      cp.streamWithDriver({ prompt: "debug" }, guard(end, function (err, r) {
         calls++;
         assert(!err, String(err));
         assertEq(r.aborted, "loop_detected");
@@ -606,8 +608,8 @@
   test("stream: loopRepeats 1 reproduces the original rule and cuts one copy sooner", function (done) {
     var phrase = "Perhaps the cause is the billing rounding, so I should check it again. ";
     withMock(function (m) { m.endless = phrase; }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port, loopRepeats: 1 });
-      cp.streamWithCopilot({ prompt: "debug" }, guard(end, function (err, r) {
+      var cp = new G.EvelynInklingDriver({ port: m.port, loopRepeats: 1 });
+      cp.streamWithDriver({ prompt: "debug" }, guard(end, function (err, r) {
         assert(!err, String(err)); assertEq(r.aborted, "loop_detected");
         assert(r.text.length < phrase.length * 3.5, "cut after about two copies, got " + r.text.length);
         end();
@@ -619,8 +621,8 @@
     var items = [], i;
     for (i = 0; i < 12; i++) items.push('{"id":' + i + ',"name":"item number ' + i + '","tags":["a","b","c"]}, ');
     withMock(function (m) { m.sse = items; }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port });
-      cp.streamWithCopilot({ prompt: "list" }, guard(end, function (err, r) {
+      var cp = new G.EvelynInklingDriver({ port: m.port });
+      cp.streamWithDriver({ prompt: "list" }, guard(end, function (err, r) {
         assert(!err, String(err)); assertEq(r.aborted, null); assertEq(r.text, items.join(""));
         end();
       }));
@@ -632,8 +634,8 @@
     withMock(function (m) {
       m.sse = ["I should look at the ", "Frostgate ", "notes ", "and the ", "heating stack ", "figures. ", "Then the ", "gondola ", "times ", "next. "];
     }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port, offsetStore: store });
-      cp.streamWithCopilot({ prompt: "plan" }, guard(end, function (err, r) {
+      var cp = new G.EvelynInklingDriver({ port: m.port, offsetStore: store });
+      cp.streamWithDriver({ prompt: "plan" }, guard(end, function (err, r) {
         assert(!err, String(err));
         assert(r.prefetched.indexOf("caldera#0") >= 0, "Frostgate shelf was read ahead: " + JSON.stringify(r.prefetched));
         assertEq(cp.prefetchCache["caldera#0"].fullText.indexOf("mile 53") >= 0, true, "the cached entry holds the text, CRC checked");
@@ -644,14 +646,14 @@
 
   test("stream: an HTTP error or a closed port is one error, once", function (done) {
     withMock(function (m) { m.status = 503; }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port }), calls = 0;
-      cp.streamWithCopilot({ prompt: "x" }, guard(end, function (err) {
+      var cp = new G.EvelynInklingDriver({ port: m.port }), calls = 0;
+      cp.streamWithDriver({ prompt: "x" }, guard(end, function (err) {
         calls++;
         assert(err && String(err).indexOf("503") >= 0, "expected a 503 error, got " + err);
         setTimeout(function () {
           try { assertEq(calls, 1); } catch (e) { return end(e); }
-          var c2 = new G.EvelynInklingCopilot({ port: 1 }), calls2 = 0;
-          c2.streamWithCopilot({ prompt: "x" }, function (err2) {
+          var c2 = new G.EvelynInklingDriver({ port: 1 }), calls2 = 0;
+          c2.streamWithDriver({ prompt: "x" }, function (err2) {
             calls2++;
             setTimeout(function () { try { assert(err2, "closed port"); assertEq(calls2, 1); end(); } catch (e2) { end(e2); } }, 30);
           });
@@ -662,7 +664,7 @@
 
   test("slots: save, restore and erase go to /slots/<id>?action=...; a bad action or a server error is an error", function (done) {
     withMock(function (m) { }, function (m, end) {
-      var cp = new G.EvelynInklingCopilot({ port: m.port });
+      var cp = new G.EvelynInklingDriver({ port: m.port });
       cp.checkpoint(0, "after_prefill.bin", guard(end, function (err, r) {
         assert(!err, String(err)); assertEq(m.paths[0], "/slots/0?action=save"); assertEq(m.bodies[0].filename, "after_prefill.bin"); assertEq(r.ok, true);
         cp.rewind(0, "after_prefill.bin", guard(end, function (err2) {
@@ -676,6 +678,207 @@
             }));
           }));
         }));
+      }));
+    }, done);
+  });
+
+  /* ======================================================================
+     THE CODE LOOP AND THE THREE.JS VERIFIER
+     ====================================================================== */
+  var CL = require("../evelyn_inkling_codeloop.js");
+  var TT = require("./threejs_tasks.js");
+  var F = "```";   /* a code fence, kept apart so this file can quote one */
+
+  var GOOD_CUBE = [
+    "function buildScene(THREE) {",
+    "  var scene = new THREE.Scene();",
+    "  var cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x44aa88 }));",
+    "  scene.add(cube); scene.add(new THREE.AmbientLight(0xffffff, 0.5));",
+    "  var d = new THREE.DirectionalLight(0xffffff, 2); d.position.set(3, 4, 5); scene.add(d);",
+    "  var camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 100); camera.position.set(0, 1, 4); camera.lookAt(0, 0, 0);",
+    "  function update(t) { cube.rotation.x = t * 0.7; cube.rotation.y = t; }",
+    "  return { scene: scene, camera: camera, update: update };",
+    "}"
+  ].join("\n");
+  var GOOD_SOLAR = [
+    "function buildScene(THREE) {",
+    "  var scene = new THREE.Scene();",
+    "  var sun = new THREE.Mesh(new THREE.SphereGeometry(2, 24, 16), new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0xffaa00, emissiveIntensity: 1 }));",
+    "  scene.add(sun); scene.add(new THREE.PointLight(0xffffff, 3000, 0, 2));",
+    "  var groups = [], radii = [5, 8, 12], speeds = [1.2, 0.8, 0.5], i;",
+    "  for (i = 0; i < 3; i++) {",
+    "    var g = new THREE.Group(), p = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), new THREE.MeshStandardMaterial({ color: 0x4488ff }));",
+    "    p.position.x = radii[i]; g.add(p); scene.add(g); groups.push(g);",
+    "  }",
+    "  var camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 200); camera.position.set(0, 20, 25); camera.lookAt(0, 0, 0);",
+    "  function update(t) { for (var k = 0; k < 3; k++) groups[k].rotation.y = t * speeds[k]; }",
+    "  return { scene: scene, camera: camera, update: update };",
+    "}"
+  ].join("\n");
+  var GOOD_ISLAND = [
+    "function buildScene(THREE) {",
+    "  var scene = new THREE.Scene();",
+    "  var ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x55aa55 }));",
+    "  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);",
+    "  var trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.8, 2.5, 6), new THREE.MeshStandardMaterial({ color: 0x226622 }), 60);",
+    "  trees.castShadow = true; var dummy = new THREE.Object3D();",
+    "  for (var i = 0; i < 60; i++) { var a = i * 2.399, r = 3 + (i % 9) * 2; dummy.position.set(Math.cos(a) * r, 1.25, Math.sin(a) * r); dummy.updateMatrix(); trees.setMatrixAt(i, dummy.matrix); }",
+    "  trees.instanceMatrix.needsUpdate = true; scene.add(trees);",
+    "  var sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(10, 20, 10); sun.castShadow = true; scene.add(sun);",
+    "  var camera = new THREE.PerspectiveCamera(50, 16 / 9, 0.1, 200); camera.position.set(25, 20, 25); camera.lookAt(0, 0, 0);",
+    "  return { scene: scene, camera: camera, update: function (t) {} };",
+    "}"
+  ].join("\n");
+
+  function errsOf(task, code) { return TT.verifyCode(task, code); }
+  function expectFail(task, code, part, label) {
+    var v = errsOf(task, code);
+    assert(!v.ok && v.errors.join(" | ").indexOf(part) >= 0, label + ": expected an error with " + JSON.stringify(part) + ", got " + JSON.stringify(v));
+  }
+
+  test("code loop: extractCode takes the block that has the marker, else the longest, and none for an unclosed block", function (done) {
+    var t1 = "intro\n" + F + "js\nvar a = 1;\n" + F + "\ntext\n" + F + "js\nfunction buildScene(T) {}\n" + F + "\n";
+    assertEq(CL.extractCode(t1, "buildScene").trim(), "function buildScene(T) {}", "marker");
+    assertEq(CL.extractCode("x\n" + F + "\nshort\n" + F + "\n" + F + "js\nlonger block here\n" + F + "\n", null).trim(), "longer block here", "longest");
+    assertEq(CL.extractCode("start\n" + F + "js\nfunction buildScene() {", "buildScene"), null, "unclosed fence");
+    assertEq(CL.extractCode("no code at all", "x"), null);
+    done();
+  });
+
+  test("three verifier: known good code passes for all three tasks", function (done) {
+    var v1 = errsOf("cube", GOOD_CUBE), v2 = errsOf("solar", GOOD_SOLAR), v3 = errsOf("island", GOOD_ISLAND);
+    assert(v1.ok, "cube: " + JSON.stringify(v1)); assert(v2.ok, "solar: " + JSON.stringify(v2)); assert(v3.ok, "island: " + JSON.stringify(v3));
+    done();
+  });
+
+  test("three verifier: it catches the faults that models make, each with a message that names the cause", function (done) {
+    expectFail("cube", GOOD_CUBE.replace("scene.add(new THREE.AmbientLight(0xffffff, 0.5));", "").replace("scene.add(d);", ""), "no light", "cube without a light");
+    expectFail("cube", GOOD_CUBE.replace("new THREE.BoxGeometry(1, 1, 1)", "new THREE.Geometry()"), "buildScene(THREE) threw", "removed API");
+    expectFail("cube", GOOD_CUBE.replace("cube.rotation.x = t * 0.7; cube.rotation.y = t;", "cube.rotation.x = 0.5;"), "rotation is the same", "a cube that does not spin");
+    expectFail("cube", "function buildScene(THREE) { return 5; }", "must return", "wrong return");
+    expectFail("cube", "var x = ;", "did not load", "a syntax error");
+    expectFail("island", GOOD_ISLAND.replace("ground.rotation.x = -Math.PI / 2; ", ""), "not horizontal", "an upright ground");
+    expectFail("island", GOOD_ISLAND.replace("trees.setMatrixAt(i, dummy.matrix);", ""), "different tree positions", "setMatrixAt never called");
+    expectFail("island", GOOD_ISLAND.replace("sun.castShadow = true;", ""), "does not cast shadows", "light without shadows");
+    expectFail("solar", GOOD_SOLAR.replace("groups[k].rotation.y = t * speeds[k];", "groups[k].rotation.y = 0;"), "does not move", "planets that stand still");
+    expectFail("solar", GOOD_SOLAR.replace("p.position.x = radii[i];", "p.position.x = radii[0];"), "at least 1 unit apart", "three equal radii");
+    expectFail("solar", GOOD_SOLAR.replace("groups[k].rotation.y = t * speeds[k];", "groups[k].position.y = t;"), "leaves the XZ plane", "an orbit that rises");
+    done();
+  });
+
+  test("three verifier: the child cannot write a file, even when the code reaches for the process object", function (done) {
+    var target = path.join(__dirname, "..", "..", "tests", "tmp", "verifier_escape.txt");
+    try { fs.unlinkSync(target); } catch (e0) { /* not there */ }
+    var evil = "function buildScene(THREE) { var p = this.constructor.constructor('return process')(); " +
+      "try { p.mainModule.require('fs').writeFileSync(" + JSON.stringify(target) + ", 'x'); } catch (e) { } return 5; }";
+    var v = errsOf("cube", evil);
+    assertEq(fs.existsSync(target), false, "the file must not have been written");
+    assert(!v.ok, "the code returns 5, so it fails the contract");
+    done();
+  });
+
+  function loopWith(replies, cfg, cb) {
+    withMock(function (m) { m.chatReplies = replies; }, function (m, end) {
+      var loop = new CL.EvelynCodeLoop({
+        store: cfg.store === undefined ? makeThreeStore() : cfg.store, client: new A.InklingClient({ port: m.port }), marker: "buildScene",
+        maxRepairs: cfg.maxRepairs === undefined ? 2 : cfg.maxRepairs,
+        verify: function (code) { return code.indexOf("GOOD") >= 0 ? { ok: true, errors: [] } : { ok: false, errors: ["no light in the scene"] }; }
+      });
+      loop.run("Build a spinning cube with a light and ground plane", guard(end, function (err, r) { try { cb(err, r, m); end(); } catch (e) { end(e); } }));
+    }, function (e) { if (e) throw e; });
+  }
+  function makeThreeStore() { var s = new S.OffsetShelfStore(); s.buildFromRecords(TT.NOTES); return s; }
+  var BAD_REPLY = "Here:\n" + F + "js\nfunction buildScene(THREE) { /* BAD */ }\n" + F + "\n";
+  var GOOD_REPLY = "Fixed:\n" + F + "js\nfunction buildScene(THREE) { /* GOOD */ }\n" + F + "\n";
+
+  test("code loop: a failing draft is run, the errors go back as they were, the repair passes", function (done) {
+    loopWith([BAD_REPLY, GOOD_REPLY], {}, function (err, r, m) {
+      assert(!err, String(err));
+      assertEq(r.ok, true); assertEq(r.firstDraftOk, false); assertEq(r.rounds, 1); assertEq(r.calls, 2); assertEq(r.history.length, 2);
+      assertEq(m.bodies[0].reasoning_effort, "low", "notes were found, so the first effort is low");
+      has(m.bodies[0].messages[1].content, "Verified notes:"); has(m.bodies[0].messages[1].content, "[three#");
+      has(m.bodies[1].messages[3].content, "no light in the scene"); has(m.bodies[1].messages[3].content, "complete corrected code");
+      done();
+    });
+  });
+
+  test("code loop: with no notes the first effort is medium; maxRepairs 0 stops after one failed draft", function (done) {
+    loopWith([BAD_REPLY], { store: null, maxRepairs: 0 }, function (err, r, m) {
+      assert(!err, String(err));
+      assertEq(m.bodies[0].reasoning_effort, "medium"); assertEq(r.ok, false); assertEq(r.calls, 1); assertEq(r.hits, 0);
+      assert(m.bodies[0].messages[1].content.indexOf("Verified notes:") < 0, "no notes block");
+      done();
+    });
+  });
+
+  test("code loop: a reply with no closed code block is a failed round that is asked again; a dead server is a failed run, not a crash", function (done) {
+    loopWith(["Sure! Here is the plan, no code yet.", GOOD_REPLY], {}, function (err, r, m) {
+      assert(!err, String(err)); assertEq(r.ok, true); assertEq(r.firstDraftOk, false); assertEq(r.calls, 2);
+      has(m.bodies[1].messages[3].content, "no closed fenced code block");
+      var loop = new CL.EvelynCodeLoop({ store: null, client: new A.InklingClient({ port: 1 }), verify: function () { return { ok: true, errors: [] }; } });
+      loop.run("anything", function (err2, r2) {
+        try { assert(!err2, "no throw"); assertEq(r2.ok, false); assertEq(r2.noCode, true); has(r2.history[0].errors[0], "no reply"); done(); } catch (e) { done(e); }
+      });
+    });
+  });
+
+  test("effortFields: a word goes in the field, a number in the template kwargs, nothing means low", function (done) {
+    var f = A.effortFields;
+    assertEq(f("high").reasoning_effort, "high"); assertEq(f(0.0).chat_template_kwargs.reasoning_effort, 0, "zero is a number");
+    assertEq(f(undefined).reasoning_effort, "low"); assertEq(f(null).reasoning_effort, "low");
+    var merged = f(0.5, { chat_template_kwargs: { enable_thinking: true } }).chat_template_kwargs;
+    assertEq(merged.enable_thinking, true); assertEq(merged.reasoning_effort, 0.5);
+    done();
+  });
+
+  test("citation check: an id that is not among the hits is found; real ids, lists of ids and a header with a topic pass", function (done) {
+    var hits = [{ shelf: "caldera", id: 0 }, { shelf: "health", id: 1 }], V = A.verifyCitationsAgainstHits;
+    assertEq(V("Mile 53 [caldera#0].", hits).length, 0, "a real id");
+    assertEq(V("See [caldera#0, health#1] and [health#1 | Oral rehydration].", hits).length, 0, "a list and a header form");
+    assertEq(V("Mile 53 [caldera#9].", hits).join(","), "caldera#9", "an id with no entry");
+    assertEq(V("Mile 53 [bonetown#0] and [health#7, caldera#0].", hits).join(","), "bonetown#0,health#7", "each bad id once, in order");
+    assertEq(V("An array a[2] and a note [see below] are not citations.", hits).length, 0, "brackets that are not ids");
+    assertEq(V("", hits).length, 0);
+    done();
+  });
+
+  test("agent: an invented source goes back for one repair with the list, like an invented number", function (done) {
+    withMock(function (m) {
+      m.chatReplies = ["Frostgate is at mile 53 [caldera#9].", "Frostgate is at mile 53 [caldera#0]."];
+    }, function (m, end) {
+      var agent = new A.EvelynInklingAgent(makeStore(), makePm(), new A.InklingClient({ port: m.port }));
+      agent.ask("Where is Frostgate?", guard(end, function (err, r) {
+        assert(!err, String(err));
+        assertEq(m.bodies.length, 2); has(m.bodies[1].messages[3].content, "source(s) [caldera#9]");
+        assert(m.bodies[1].messages[3].content.indexOf("number(s)") < 0, "no number complaint");
+        has(r.path, "self-corrected"); assertEq(r.badCitations.join(","), "caldera#9");
+        end();
+      }));
+    }, done);
+  });
+
+  test("grammar: every rule it uses is defined", function (done) {
+    var g = G.buildGroundedGrammar([{ shelf: "health", id: 1 }]);
+    var defined = {}, used = {};
+    g.split("\n").forEach(function (l) { var mm = /^(\w+)\s*::=/.exec(l); if (mm) defined[mm[1]] = true; });
+    g.split("\n").forEach(function (l) {
+      var rhs = l.replace(/^\w+\s*::=/, "").replace(/"(?:[^"\\]|\\.)*"/g, " ").replace(/\[(?:[^\]\\]|\\.)*\]/g, " ");
+      (rhs.match(/[a-z]+/g) || []).forEach(function (w) { used[w] = true; });
+    });
+    Object.keys(used).forEach(function (u) { assert(defined[u], "rule used but not defined: " + u); });
+    done();
+  });
+
+  test("stream: when the server sends no text deltas (a grammar on LM Studio's build), the text of the last event is used", function (done) {
+    withMock(function (m) { m.rawFrames = [
+      { choices: [{ delta: { role: "assistant", content: null } }] },
+      { choices: [{ finish_reason: "stop", delta: {} }], __lmstudio: { model_output: '{"answer":"Hi","sources":[]}' } }
+    ]; }, function (m, end) {
+      var cp = new G.EvelynInklingDriver({ port: m.port });
+      cp.streamWithDriver({ messages: [{ role: "user", content: "x" }] }, guard(end, function (err, r) {
+        assert(!err, String(err));
+        assertEq(r.text, '{"answer":"Hi","sources":[]}'); assertEq(r.fromFinalEvent, true); assertEq(r.events, 2);
+        end();
       }));
     }, done);
   });
@@ -729,7 +932,7 @@
   });
 
   test("ES5 only and the files are clean: no arrow, let, const, template literal or control character", function (done) {
-    ["evelyn_inkling_agent.js", "evelyn_cascade.js", "evelyn_gguf_copilot.js", "evelyn_tny3.js"].forEach(function (f) {
+    ["evelyn_inkling_agent.js", "evelyn_cascade.js", "evelyn_gguf_driver.js", "evelyn_tny3.js", "evelyn_inkling_codeloop.js"].forEach(function (f) {
       var src = fs.readFileSync(path.join(__dirname, "..", f), "utf8");
       var arrow = new RegExp("=" + ">"), lc = /(^|[\s;(])(let|const)\s+[A-Za-z_$]/m;
       assert(!arrow.test(src), f + ": arrow function");
@@ -759,6 +962,6 @@
     }
     try { cur.fn(done); } catch (e) { done(e); }
   }
-  console.log("=== EVELYN INKLING AGENT, CASCADE AND COPILOT TESTS (" + tests.length + ") ===");
+  console.log("=== EVELYN INKLING AGENT, CASCADE AND DRIVER TESTS (" + tests.length + ") ===");
   next();
 })();

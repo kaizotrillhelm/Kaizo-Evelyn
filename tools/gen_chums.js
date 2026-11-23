@@ -1,4 +1,4 @@
-/* gen_chums.js - builds neon/evelyn_chums_data.js (the DritchChum / Echo species table) from the owner's
+/* gen_chums.js - builds caldarium/evelyn_chums_data.js (the DritchChum / Echo species table) from the owner's
    CharacterDatabase. Species are the database's CREATURE records only: no humanoid is ever a pet, and a creature
    whose look text describes a woman or girl is left out. role "nice" = Echo, role "naughty" = DritchChum.
    node tools/gen_chums.js            write the file
@@ -11,7 +11,7 @@ var crypto = require("crypto");
 
 var ROOT = path.resolve(__dirname, "..");
 var DB = process.env.CHUM_DB || path.resolve(ROOT, "..", "CharacterDatabase", "database", "characters.json");
-var OUT = path.join(ROOT, "neon", "evelyn_chums_data.js");
+var OUT = path.join(ROOT, "caldarium", "evelyn_chums_data.js");
 var WOMAN_WORDS = /\b(woman|women|girl|girls|lady|ladies|female|queen|princess|witch|maid|mermaid|nurse|humanoid)\b/i;
 
 function clip(s, n) { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1).replace(/[ ,;:]+\S*$/, "") + "." : s; }

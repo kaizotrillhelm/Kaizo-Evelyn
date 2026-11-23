@@ -1,4 +1,4 @@
-/* evelyn_inkling_live.js - the agent and the copilot against a REAL llama-server running the Inkling GGUF.
+/* evelyn_inkling_live.js - the agent and the driver against a REAL llama-server running the Inkling GGUF.
    node js/test/evelyn_inkling_live.js --port 1249 [--maxtokens 1500]
    The server is started elsewhere, through the GPU queue (ShotReader_2026-11-20/tools/sr_server.mjs on the 3090 while
    ComfyUI is idle). Nothing is started or stopped here. Without a server on the port the file says SKIPPED and exits 0.
@@ -10,7 +10,7 @@
   var E = require("../evelyn_core.js");
   var S = require("../evelyn_stream.js");
   var A = require("../evelyn_inkling_agent.js");
-  var G = require("../evelyn_gguf_copilot.js");
+  var G = require("../evelyn_gguf_driver.js");
 
   function arg(n, d) { var i = process.argv.indexOf("--" + n); return i > 0 && process.argv[i + 1] !== undefined ? process.argv[i + 1] : d; }
   var PORT = Number(arg("port", 1249)), MAXTOK = Number(arg("maxtokens", 1500));
@@ -91,33 +91,34 @@
     })();
   });
 
-  step("copilot: a grammar built from the shelf ids keeps the answer to real citations (chat endpoint, streamed)", function (done) {
+  step("driver: a grammar built from the shelf ids keeps the answer to real citations (chat endpoint, streamed)", function (done) {
     var store = makeStore(), hits = store.searchFull("rehydration sugar salt water", 1);
-    var cp = new G.EvelynInklingCopilot({ port: PORT, offsetStore: store });
+    var cp = new G.EvelynInklingDriver({ port: PORT, offsetStore: store });
     var grammar = cp.buildGroundedGrammar(hits);
     var t0 = Date.now(), first = null;
-    cp.streamWithCopilot({
+    cp.streamWithDriver({
       messages: [{ role: "user", content: "Using only this excerpt, say how to mix an oral rehydration drink. Reply as JSON with answer and sources.\n[" + hits[0].shelf + "#" + hits[0].id + "] " + hits[0].fullText }],
       grammar: grammar, effort: "low", maxTokens: MAXTOK, temperature: 0.2,
       onToken: function () { if (first === null) first = Date.now() - t0; }
     }, function (err, r) {
       if (err) return done(err);
-      note("events " + r.events + ", first token " + first + " ms, total " + (Date.now() - t0) + " ms, aborted " + r.aborted);
+      note("events " + r.events + ", first token " + first + " ms, total " + (Date.now() - t0) + " ms, aborted " + r.aborted + ", text came from the last event: " + r.fromFinalEvent);
       note("text: " + r.text.replace(/\s+/g, " ").slice(0, 300));
       var json = null, m = /\{[\s\S]*\}\s*$/.exec(r.text);
       try { json = JSON.parse(m ? m[0] : r.text); } catch (e) { json = null; }
       if (!json) return done(new Error("the grammar did not produce JSON (the server may not apply a grammar on this endpoint)"));
       var ok = Array.isArray(json.sources) && json.sources.every(function (s) { return s === hits[0].shelf + "#" + hits[0].id || s === "none"; });
       note("parsed JSON; sources " + JSON.stringify(json.sources) + (ok ? "  -> only the real id" : "  -> NOT confined to the real id"));
+      note("the answer string is " + JSON.stringify(String(json.answer).slice(0, 60)) + (String(json.answer).replace(/[.\s]/g, "").length < 5 ? "  -> a placeholder: with a grammar on the model does not think (see README)" : ""));
       if (!ok) return done(new Error("sources are not confined to the shelf ids"));
       done();
     });
   });
 
-  step("copilot: the loop cut on a real stream (a prompt that asks for the same sentence again and again)", function (done) {
-    var cp = new G.EvelynInklingCopilot({ port: PORT, loopRepeats: 2 });
+  step("driver: the loop cut on a real stream (a prompt that asks for the same sentence again and again)", function (done) {
+    var cp = new G.EvelynInklingDriver({ port: PORT, loopRepeats: 2 });
     var t0 = Date.now();
-    cp.streamWithCopilot({
+    cp.streamWithDriver({
       messages: [{ role: "user", content: "Write the sentence 'The quick brown fox jumps over the lazy dog near the old river bank.' repeated forever, with no other words." }],
       effort: "low", maxTokens: 700, temperature: 0.0
     }, function (err, r) {
@@ -128,8 +129,8 @@
     });
   });
 
-  step("copilot: checkpoint and rewind a slot (needs the server's --slot-save-path)", function (done) {
-    var cp = new G.EvelynInklingCopilot({ port: PORT });
+  step("driver: checkpoint and rewind a slot (needs the server's --slot-save-path)", function (done) {
+    var cp = new G.EvelynInklingDriver({ port: PORT });
     cp.checkpoint(0, "evelyn_live_test.bin", function (err, r) {
       if (err) { note("not available on this server: " + err.message); return done(); }
       note("save: " + JSON.stringify(r).slice(0, 160));

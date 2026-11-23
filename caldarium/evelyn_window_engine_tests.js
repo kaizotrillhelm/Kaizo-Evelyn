@@ -99,7 +99,7 @@
     assertEq(build3D.recurrentLoops, 4, "Initial 3D build should get 4 recurrent loops");
     assert(build3D.pinnedHeader.indexOf("Y-up") >= 0, "3D tasks must pin Y-up coordinate spec");
     assertEq(quickEdit.recurrentLoops, 1, "Small follow-up edit should drop to 1 fast loop");
-    assertEq(proseTask.weightPrecision, "BITNET_I2S", "Non-3D prose tasks can use ultra-fast BitNet I2S");
+    assertEq(proseTask.weightPrecision, "TERNARY_I2S", "Non-3D prose tasks can use ultra-fast ternary I2S");
     done();
   });
 

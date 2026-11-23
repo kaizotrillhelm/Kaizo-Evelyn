@@ -1,5 +1,5 @@
 /* evelyn_suite_integration.js - Connects all 78 Cartridges, 15 Concourse Doors,
-   Live Focus/Lesson Evolution & Interactive Engines into Evelyn NEON.
+   Live Focus/Lesson Evolution & Interactive Engines into Evelyn CALDARIUM.
    Pure ES5. Zero external dependencies. */
 (function (root) {
   "use strict";

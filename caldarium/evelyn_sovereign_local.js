@@ -1,6 +1,6 @@
 /* evelyn_sovereign_local.js - Local Sovereignty & Multi-Device Efficiency for Evelyn:
    1. RuntimeBenchSelector   (Auto-benchmarks local kernels on boot and pins fastest engine)
-   2. ExoLayerPool           (Pipeline-parallel layer splitter across cheap LAN devices + INT8 hops)
+   2. LanLayerPool           (Pipeline-parallel layer splitter across cheap LAN devices + INT8 hops)
    3. PrivacyRedactor        (Reversible PII/secret scrubber + hard air-gapped lockout switch)
    4. SovereignManifest      (CRC32 + byte-size lock proving local models/shelves never silently change)
    5. LocalTranscriptPipe    (Normalizes $0/min local whisper.cpp / speech transcripts into lessons)
@@ -73,7 +73,7 @@
     return out;
   }
 
-  var ExoLayerPool = {
+  var LanLayerPool = {
     /* peers: [{ id, freeRamMB, alive }] -> contiguous non-overlapping layer shards */
     partitionLayers: function (totalLayers, peers) {
       var alive = [];
@@ -200,8 +200,8 @@
      5. $0/MIN LOCAL VOICE TRANSCRIPT NORMALIZER (WHISPER.CPP TINY -> LESSON)
      ========================================================================= */
   var LocalTranscriptPipe = {
-    cleanTranscript: function (rawWhisperText) {
-      var s = String(rawWhisperText || "")
+    cleanTranscript: function (rawSpeechText) {
+      var s = String(rawSpeechText || "")
         .replace(/\[(?:BLANK_AUDIO|MUSIC|NOISE)\]/gi, " ")
         .replace(/\b(um|uh|er)\b,?\s*/gi, "")
         .replace(/\s{2,}/g, " ")
@@ -217,7 +217,7 @@
     RuntimeBenchSelector: RuntimeBenchSelector,
     quantizeActivation8: quantizeActivation8,
     dequantizeActivation8: dequantizeActivation8,
-    ExoLayerPool: ExoLayerPool,
+    LanLayerPool: LanLayerPool,
     PrivacyRedactor: PrivacyRedactor,
     SovereignManifest: SovereignManifest,
     LocalTranscriptPipe: LocalTranscriptPipe

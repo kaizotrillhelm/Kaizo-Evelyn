@@ -129,7 +129,7 @@
     var gov = new R.SafetyGovernor({ maxPwm: 65, watchdogMs: 500 });
 
     /* Pack a 2x4 BitNet ternary obstacle-steering policy (zero inner-loop multiplies) */
-    var policy = F.BitNetI2S.packTernary(new Float32Array([0.9, 0.8, -0.7, 0.2, -0.7, 0.8, 0.9, 0.2]), 2, 4);
+    var policy = F.TernaryPacked.packTernary(new Float32Array([0.9, 0.8, -0.7, 0.2, -0.7, 0.8, 0.9, 0.2]), 2, 4);
     gov.heartbeat(100);
     var sensors = sim.readUltrasonic3();
     var res = R.evalTernaryBotPolicy(policy, sensors, gov, 150);
