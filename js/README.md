@@ -14,6 +14,7 @@ In a page, load `evelyn_core.js` and use the global `Evelyn`. In Node, `require(
 | --- | --- |
 | `Evelyn.LZCodec`, `Evelyn.LibraryStore` | compression, base64, the library (`addEntry`, `search`, `ingestPlainText`, `toText`, `fromText`) |
 | `Evelyn.Tiny2Model` | `loadFromArrayBuffer`, `step`, `think(text, creativity)`, `prime`, `exportKVCache`, `importKVCache` |
+| `EvelynStream` (`evelyn_stream.js`) | layer streaming: `Tiny2StreamModel` (`loadFromBuffer`, `loadFromAsyncShards`, `think`, `thinkAsync`, `layerAt`), `buildSovereignManifest`, `splitTny2Shards`, `OffsetShelfStore`, `crc32`. Inspired by AirLLM; see the top-level README |
 | `Evelyn.ProfileManager` | learner profile; `toCfg` and `fromCfg` read and write `USER.CFG` |
 | `Evelyn.CodeSandbox`, `Evelyn.AdventureEngine`, `Evelyn.SwarmTutor` | coding lab, adventure, tutor |
 | `Evelyn.MultiShelfLibrary`, `Evelyn.DeliberationSwarm` | several shelves with the number checker |

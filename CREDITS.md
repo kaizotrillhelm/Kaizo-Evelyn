@@ -22,6 +22,7 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 | llguidance | https://github.com/guidance-ai/llguidance | MIT | masking invalid tokens by grammar before sampling |
 | XGrammar | https://github.com/mlc-ai/xgrammar | Apache-2.0 | same |
 | exo | https://github.com/exo-explore/exo | Apache-2.0 | splitting a model's layers across several cheap devices (`ExoLayerPool`, a simulation) |
+| **AirLLM** (lyogavin) | https://github.com/lyogavin/airllm | Apache-2.0 | **Inspiration for `js/evelyn_stream.js`**: run a model that does not fit in memory by loading one layer at a time, running it and dropping it; read the next layer ahead while the current one computes; check each layer shard. Evelyn takes the ideas only: the `layerAt(l)` accessor, per-layer prefetch, per-layer CRC32 pins (`SovereignManifest`), layer-order prefill, and a text store addressed by byte offset (`OffsetShelfStore`). No AirLLM code and no Python is included; the implementation is written fresh in ES5 for the `TNY2` file. |
 | llama.cpp | https://github.com/ggml-org/llama.cpp | MIT | the local model server the optional bridge can talk to |
 | whisper.cpp | https://github.com/ggml-org/whisper.cpp | MIT | offline speech-to-text path (`LocalTranscriptPipe`) |
 | uzu | https://github.com/trymirai/uzu | MIT | an example of benchmarking local engines (`RuntimeBenchSelector`) |

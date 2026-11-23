@@ -58,6 +58,7 @@ step("generated BASIC declarations are current", function () { return node("tool
 step("BASIC names avoid keywords", function () { return node("tools/check_bas_names.js"); });
 step("no stray control characters", controlCharScan);
 step("JavaScript unit tests", function () { return node("js/test/test_evelyn.js"); });
+step("JavaScript layer-streaming tests", function () { return node("js/test/evelyn_stream_tests.js"); });
 step("BASIC interpreter tests", function () { return node("tests/test_qbi.js"); });
 
 var cBuilt = fs.existsSync(path.join(ROOT, "c", "out", "evelyn_test" + EXE));

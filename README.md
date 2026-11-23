@@ -1,5 +1,9 @@
 # Evelyn and her Echoes
 
+**Evelyn Eliminates E-Waste.**
+
+A computer that is too old for today's software is still a computer. Evelyn is written to run on the old machines people throw away: plain code, no network, no installs, little memory. The section [Reaching back: how old a machine can run it](#reaching-back-how-old-a-machine-can-run-it) says how far back each edition is meant to go and what has actually been tried.
+
 ![Evelyn: the concourse, a question to Echo, and the Lab](media/evelyn_demo.gif)
 
 More: [the portrait, 10 seconds](media/evelyn_face_float.gif) and [the cartridge player, validator, debugger and safety charter](media/evelyn_features.gif).
@@ -17,7 +21,7 @@ The JavaScript edition is the reference. The other two are checked against it.
 ## What is in it
 
 - **Library.** Text is compressed with 16-bit LZW, stored as base64, and indexed by word. `LIBRARY.EVL` is the file format; all three editions read and write the same file. A starter set of 16 facts is built in, and any `.txt` file can be added.
-- **Neural engine.** A reader for the `TNY2` weight file (4 layers of width 96 for the real `TINY.BIN`) with an 8-bit KV cache. It answers one character at a time. The `KV21` format moves a cache from one model to another. The shape of the file comes from the loader in the source conversation; no trained `TINY.BIN` was available here, so the tests use generated weights.
+- **Neural engine.** A reader for the `TNY2` weight file (4 layers of width 96 for the real `TINY.BIN`) with an 8-bit KV cache. It answers one character at a time. The `KV21` format moves a cache from one model to another. The file layout is described under File formats below. No trained `TINY.BIN` was available here, so the tests use generated weights.
 - **Learner profile.** The reading, audio, doing or mixed style, experience points, topics mastered, and the adventure state. `USER.CFG` is the file format.
 - **Tutor.** Answers arithmetic itself, otherwise looks the question up in the library, shapes the answer to the learner's style, and adds the neural engine's text when a model is loaded.
 - **Adventure.** Four rooms with a puzzle each, using the same library for hints.
@@ -49,13 +53,72 @@ basic\build.bat ; basic\evelyn.exe         # BASIC with FreeBASIC (fbc on the PA
 
 All three programs take the same commands: a question, `/mode R|A|D|M`, `/adv` to enter or leave the adventure, `/code LET a=4;PRINT a*a`, `/profile` and `/quit`. Pass a `.BIN` file to load a `TNY2` model and any other file to add it to the library.
 
+## What each edition can do
+
+| | JavaScript (`js/`, plus `neon/`) | C (`c/`) | BASIC (`basic/`) |
+| --- | --- | --- | --- |
+| Offline library: add text, search, `LIBRARY.EVL` | yes | yes | yes, up to 1000 entries |
+| `TNY2` neural engine, answers one letter at a time | yes, greedy or sampled | yes, greedy or sampled | yes, greedy only |
+| Move a `KV21` cache between models | yes | yes | no (a primed prefix works) |
+| Layer streaming: one layer in memory, per-layer checks | **yes** (`evelyn_stream.js`) | not yet | not yet |
+| Learner profile, `USER.CFG` | yes | yes | yes |
+| Tutor (arithmetic, library lookup, answer shaped to the learner's style) | yes | yes | yes |
+| Adventure (four rooms with puzzles) | yes | yes | yes |
+| Coding lab (turtle grid language, 500-step limit) | yes | yes | yes |
+| Several shelves with the number checker | yes | yes | no |
+| Game and bot packets, integer dot product | yes | yes | no |
+| Runs from a web page with nothing installed | yes (`js/index.html`) | no | no |
+| Concourse with 78 games, Echo and DritchChum pets, Lab (game X-ray, 3D viewer, SQL, code check), robot simulator, book games | yes (`neon/`) | no | no |
+| Terminal program | `node js/evelyn_cli.js` | `evelyn.exe` | `evelyn.exe` (FreeBASIC) |
+| Use as a library in your own program | `require` or a script tag | `evelyn.h` | no (a program, not a library) |
+
+The JavaScript edition is the only one that has everything. C and BASIC cover the core: library, engine, tutor, adventure and coding lab. The cross-edition tests keep their answers identical to JavaScript's for the parts they share.
+
+## Layer streaming (JavaScript only, `js/evelyn_stream.js`)
+
+Inspired by [AirLLM](https://github.com/lyogavin/airllm) (Apache-2.0), which runs a large model on a small graphics card by loading one layer, running it and dropping it. Evelyn applies the same idea to the `TNY2` file for machines that cannot hold all of it: no AirLLM code or Python is used (see `CREDITS.md`).
+
+```js
+var S = require("./evelyn_stream.js");                     // or the global EvelynStream in a page
+var manifest = S.buildSovereignManifest(buffer);            // a CRC32 pin for every layer
+var m = new S.Tiny2StreamModel();
+m.loadFromBuffer(buffer, "slice", manifest);                // "resident" parses all layers now
+var a = m.think("capital of estonia");                      // { text, stats }
+// a.stats: layersLoaded, bytesRead, lettersPerSec  (counted, not estimated)
+```
+
+- **`layerAt(l)`** returns a layer from one of three sources: *resident* (all layers parsed up front), *slice* (parsed from the file buffer when asked, then dropped) or *prefetch* (an asynchronous fetcher such as IndexedDB or a file read; layer l+1 is asked for while layer l computes). `thinkAsync(question, maxNew, callback)` uses the prefetch source; `splitTny2Shards(buffer)` cuts a file into a base part, one shard per layer and the final gains, as they would be stored separately.
+- **Zero-copy views.** A weight row is an `Int8Array` view into the source buffer; no weight byte is copied. (Each view is a small object, so a JavaScript engine still pays for the objects; this was not measured.)
+- **Layer-order prefill.** The whole question goes through layer 0, then layer 1, and so on, so a layer is loaded once for the question and once per letter written, instead of once per letter of the question. A 29-letter question on 2 layers costs 2 layer loads, not 58.
+- **SovereignManifest.** CRC32 for the header, the token and position tables, every layer and the final gains. A flipped bit or a truncated layer is refused before it is used; the test flips one bit and checks that it is caught.
+- **OffsetShelfStore.** The search index stays in memory and the full text of each entry stays in a blob (or a file) and is read by byte offset, with a CRC32 check, only when an entry is chosen.
+- **Same answer.** The streamed text and every byte of the key and value caches equal `Evelyn.Tiny2Model` and the resident mode (`js/test/evelyn_stream_tests.js`, 10 checks, including the real `TINY.BIN` shape of 381,808 bytes).
+
+**What it saves, honestly.** For the real shape (width 96, 4 layers) one layer is 89,728 bytes. Holding the whole file plus the caches takes 484,208 bytes; with layers coming from a fetcher, one layer in flight takes 215,024 bytes and two (read-ahead) 304,752. Streaming from a file buffer that is already whole in memory ("slice") saves no memory; it counts and checks each layer. The memory saving comes from a shard source. On this PC, with random weights, a 12-letter answer loaded 52 layers (4.4 MB of layer data checked) at about 400 to 500 letters a second. No real `TINY.BIN`, slow disk or old browser was tried, so the benefit on the machines it is meant for is arithmetic, not a measurement.
+
+Run it: `node js/test/evelyn_stream_tests.js` (also a step of `node tests/run_all.js`).
+
+## Reaching back: how old a machine can run it
+
+The aim is that old hardware keeps working. These are the oldest targets each edition is written for, and what has actually been run. **No machine older than a current PC was used for any test.** The "written for" column comes from the language features and library calls the code uses; it is a design target, not a result.
+
+| Edition | Written for | Why that is the floor | Actually run |
+| --- | --- | --- | --- |
+| JavaScript, in a browser | About 2011 to 2012 browsers: Internet Explorer 10, Firefox 15, Chrome 9, Safari 5.1, Android 4.0 | The code is ES5 (no arrow functions, `let`, `const`, modules or promises) and needs typed arrays and `DataView`, which those browsers introduced. Opened from a file; no server. Browser speech and sound are optional extras. | Brave (current) |
+| JavaScript, in Node | Any Node with typed arrays | Same code, no packages | Node 25 |
+| C | Any C89 compiler with a 32-bit `unsigned long` and IEEE `float`; written with Turbo C and other DOS-era compilers in mind | C89 declarations and comments, one `#ifdef __TURBOC__` for the PC speaker, `-std=c89 -pedantic` in the Makefile | Visual Studio's `cl` only. gcc, Turbo C and DOS were not tried |
+| BASIC | FreeBASIC `-lang qb` (QuickBASIC dialect) for DOS, Windows, Linux and Raspberry Pi | 16-bit `INTEGER` rules are followed; the model tables take about 700 KB, so it needs more than the 640 KB of plain DOS memory, which means FreeBASIC's 32-bit DOS target (a 386 or later, as far as I know) | The bundled interpreter `tests/qbi.js` only. FreeBASIC was not installed |
+| Layer streaming | Same as the JavaScript edition | Also needs `Date.now` and `Object.create`, both ES5 | Node 25 |
+
+What would extend the reach: a C build of the layer streaming for DOS machines (not done), BASIC streaming (not done), and a test on a real old browser or a real DOS machine (not done).
+
 ## Tests
 
 ```powershell
 node tests\run_all.js
 ```
 
-This runs, in order: generated files are current, BASIC names avoid keywords, no stray control characters, the JavaScript unit tests (48), the BASIC interpreter tests (49), the C build, the C unit tests (212), the cross-edition conformance run, and the command line programs for all three (24 checks).
+This runs, in order: generated files are current, BASIC names avoid keywords, no stray control characters, the JavaScript unit tests (48), the JavaScript layer-streaming tests (10), the BASIC interpreter tests (49), the C build, the C unit tests (212), the cross-edition conformance run, and the command line programs for all three (24 checks).
 
 **Conformance.** `tests/conformance.txt` is one script of 228 commands in six sections: core (180), kv (12), sampling (11), swarm (11), net (11) and full (3). Each edition has a small driver (`js/evelyn_proto.js`, `c/evelyn_proto.c`, `basic/evelyn_proto.bas`) that reads the script and prints one result line per command. `tests/run_conformance.js` runs the script through every edition and compares the lines with the JavaScript output. Score lines may differ in the sixth decimal; every other line must be identical. It also compares the files the editions write (`LIBRARY.EVL`, `USER.CFG`, `KV21` caches) byte for byte, and feeds each edition the files the JavaScript edition wrote. The neural engine is checked on generated models, including one with the real `TINY.BIN` shape (JavaScript and C).
 
@@ -70,25 +133,36 @@ Result on this machine: JavaScript and C agree on 1135 output lines in all six s
 - **The BASIC edition was not compiled with FreeBASIC, which is not installed here.** It ran in `tests/qbi.js`, an interpreter for the subset of BASIC it uses. The interpreter is strict on purpose: it refuses undeclared variables, stops on 16-bit INTEGER overflow, rounds SINGLE values to 32 bits at every step, and requires exact types for by-reference arguments. That catches the usual mistakes, but only a real compiler shows whether the declarations and file statements are accepted. The first thing to try on a machine with FreeBASIC is `node tests\run_conformance.js`: when `fbc` is on the PATH it compiles `basic/evelyn_proto.bas` and compares that program with the JavaScript edition too.
 - No real `TINY.BIN` was available. When you have one, run the same question through `TINY.EXE` and through `node js\evelyn_cli.js --bin TINY.BIN` and compare.
 
-## Differences from the code in the conversation
+## Design decisions
 
-The editions follow the conversation's design, with these changes made so the three agree and the tests have exact answers.
+Evelyn is based on Tiny-2.1's idea of a small language model that answers one letter at a time. It contains no code, data or trained weights from that project (see `CREDITS.md`). These are the rules the three editions share, written down so that they agree and the tests can check exact answers.
 
-- The namespace is `Evelyn` (`Oasis` remains as an alias in browsers).
+**Names and storage**
+- The namespace is `Evelyn`. In a browser `Oasis` stays as an alias, so older pages keep working.
+- In a browser the profile and library live in `localStorage`. Node 25 prints a warning when its global `localStorage` is touched, so Node uses a folder instead (`Storage.useDirectory`).
+
+**Library and tutor**
 - Library search lists higher scores first and, on a tie, the lower entry number.
-- The coding language accepts `=` as well as `==` in conditions, ignores the case of variable names, joins strings with `+`, and prints numbers with at most six decimals.
-- A solved puzzle awards the experience points its reward text names (20, 20, 20 and 50). Before, every puzzle gave 10.
-- The checker in the multi-shelf code ignores the `[shelf#id]` tags when it looks for numbers; with them in, almost every answer failed.
+- The multi-shelf checker ignores the `[shelf#id]` tags when it looks for numbers; with the tags counted, almost every answer was rejected.
+- A solved puzzle awards the experience points its reward text names (20, 20, 20 and 50).
 - `bestLearnedMode` returns the learner's current mode when no mode has a count yet.
-- In Node 25 the global `localStorage` printed a warning, so the browser's storage is used only inside a browser; Node uses a folder (`Storage.useDirectory`).
-- The `KV21` header lists the width first, then the layer count, then the length, as the JavaScript code in the conversation did. The C helper in the conversation wrote the layer count first.
-- `Tiny2Model.prime(text)` was added: it feeds text as a prefix that stays in the cache, so a prefix exported from one model can be imported by another and the second model continues exactly where the first stood.
-- The micro game demo (Verlet rope and evolving bots) from the conversation is not included.
+
+**Coding lab**
+- Conditions accept `=` as well as `==`; variable names ignore case; strings join with `+`; numbers print with at most six decimals.
+
+**Neural engine and formats**
+- The `KV21` header lists the width first, then the layer count, then the length, in the JavaScript and C editions (BASIC has no `KV21` export).
+- `Tiny2Model.prime(text)` feeds text as a prefix that stays in the cache. A prefix exported from one model can be imported by another, and the second model continues exactly where the first stood.
+- `js/evelyn_stream.js` (layer streaming, JavaScript only) gives the same answers as `Tiny2Model`, letter for letter and byte for byte in the cache, so a machine that cannot hold the whole weight file can still use it.
+
+**Where things are, and what is left out**
+- The micro game demo (a Verlet rope and bots that evolve live on the CPU) is `neon/game_engine_demo.html`, JavaScript only.
+- The C and BASIC editions cover the core (library, engine, tutor, adventure, coding lab). The NEON stack, the Echo and DritchChum pets and the Lab exist only in JavaScript.
 
 ## Folders
 
 ```
-js/       evelyn_core.js  evelyn_cli.js  evelyn_proto.js  index.html  test/test_evelyn.js
+js/       evelyn_core.js  evelyn_stream.js  evelyn_cli.js  evelyn_proto.js  index.html  test/test_evelyn.js  test/evelyn_stream_tests.js
 c/        evelyn.h  evelyn.c  evelyn_data.h  evelyn_cli.c  evelyn_proto.c  evelyn_test.c  build.bat  Makefile
 basic/    evelyn_core.bi  evelyn_data.bi  evelyn_io.bi  evelyn_decl.bi  evelyn.bas  evelyn_proto.bas  build.bat  build.sh
 tools/    make_test_model.js  gen_data.js  gen_decl.js  check_bas_names.js  bas_keywords.json
@@ -107,7 +181,7 @@ tests/    run_all.js  run_conformance.js  conformance.txt  qbi.js  test_qbi.js  
 
 ## The NEON stack (`neon/`, added 2026-11-22)
 
-The later turns of the Tiny-2.1 conversation and its "Adaptive Learning Suite" branch (`AI-Studio_...-2049.md` files) built a second, browser-first JavaScript stack on top of the same ideas. It lives in `neon/`, all ES5, no dependencies, Node or browser, and it is separate from the `js/` reference edition (its own `EvelynBackend`, IndexedDB shelves, Web Worker `TNY2`).
+A second, browser-first JavaScript stack builds on the same ideas. It lives in `neon/`, all ES5, no dependencies, Node or browser, and it is separate from the `js/` reference edition (its own `EvelynBackend`, IndexedDB shelves, Web Worker `TNY2`).
 
 | File | What it is |
 | --- | --- |
@@ -135,15 +209,14 @@ The later turns of the Tiny-2.1 conversation and its "Adaptive Learning Suite" b
 - `evelyn_frontier.js`: the shelf-citation grammar had no length limit, so with random logits it never reached `#` inside 16 characters; names are now 2 to 8 letters.
 - `evelyn_robotics.js`: the PID controller now stops integrating while the output is pinned at a limit (anti-windup); `evelyn_robotics_tests.js` uses a slower integral gain (0.05), because with 0.15 the loop still overshot by 5 percent at 4 seconds.
 - `evelyn_net.js` is exported for Node as well as the browser; `evelyn_concourse.html` loads every module and mounts the portrait, doctor, hub, director, voice guard, charter gate and Chum Loft, rebuilt when the profile changes; `evelyn_test_runner.html` runs every suite.
-- `evelyn_kaizostria_neon.html` (the chat's first attempt at the canon game hub) was left out: the reply was cut off in mid-string and the next turn replaced it with the split stack above.
 
 **Checked:** `node tests/run_all.js` runs the nine Node suites of `neon/` (17, 6, 7, 8, 8, 6, 6, 4 and 10 checks) and `tests/check_neon_browser.py`, which starts its own server and drives real Brave: all suites in the page (64 checks; the eight Node-only audits are skipped there), the concourse (15 doors, 78 cartridges, portrait, loft, adopting an Echo and a DritchChum, chat commands with either word, opening a cartridge, the loft surviving a reload through IndexedDB), and the other two pages load without errors.
 
 **Not checked, and left:** the Arduino sketch (`neon/evelyn_bot_rx/`) was not compiled and the Web Serial robot bridge never touched hardware; no phone, old browser (IE or 2012 builds) or real `TINY.BIN`; the speech and sound paths were not listened to; the C and BASIC editions have no chum system (the NEON stack is JavaScript only); the frontier, robotics and sentinel modules are tested but have no screen in the concourse; the Kaizostria cartridge plan in `cartridges/` still calls the phonics sound-creatures "Echoes" with no raising loop, which fits the new meaning but is not yet linked to the loft.
 
-## The NEON stack, round 2 (2236 export)
+## The NEON stack, round 2
 
-The "Adaptive Learning Suite" export (`...-2236.md`, byte-identical to `-2228`) holds 41 code files for this round (its other code blocks are the round-1 files again). The Tiny 2.1 export `-2249` is byte-identical to `-2049` and `-2011`, so it added nothing. All of them are in `neon/`; each was compared with its code block in the export. Every file is the same as the export except the round-1 changes listed above and the changes listed below (mostly the ES5-audit fix in test files). `CREDITS.md` lists, with links and licences, the papers, repositories, posts and pages the code drew on.
+This round adds 41 code files, all in `neon/`, each with its own tests. The changes made while placing them are listed below (mostly the ES5-audit fix in test files). `CREDITS.md` lists, with links and licences, the papers, repositories, posts and pages the code drew on.
 
 | Module (all ES5, no network) | What it does | Tests |
 | --- | --- | --- |
@@ -161,14 +234,14 @@ The "Adaptive Learning Suite" export (`...-2236.md`, byte-identical to `-2228`) 
 - `evelyn_voice_guard.js`: "isn't just about" and the rule-of-three words ending in "sion", "ance" and "ence" were missed.
 - `evelyn_sovereign_local.js`: the backend benchmark read a whole-millisecond clock, so two fast kernels both read 0 ms and the first listed won; it now uses the high-resolution clock, three timings and longer runs when a timing is under 5 ms.
 - `evelyn_bridge.js` (the one module that can run code, so it was reviewed line by line): it binds only to 127.0.0.1 and never starts by itself (requiring it opens no port; only `node evelyn_bridge.js` does). Added: a per-start token for every `/api` call except `/api/health`, Host and Origin checks, JSON-only bodies, and `Cross-Origin-Resource-Policy`; a write into a missing folder no longer throws inside the request handler and ends the process; only `.html .js .css .json .bin` are served as static files; a program it runs gets a small environment (no keys or tokens from the server's); a link inside the workspace that leaves it is refused. `evelyn_turbo_tests.js` tests each of these, including a cross-site page, a rebinding host name and a link out of the workspace.
-- `tests/run_all.js` runs the 17 new suites and the chat's own master runner (26 suites). The browser check's "at least 150 checks" floor was stale; it is 140 now (143 measured) and it also checks that all 19 suites that run on load announced themselves.
+- `tests/run_all.js` runs the 17 new suites and the master runner `neon/evelyn_run_all_tests.js`. The browser check's "at least 150 checks" floor was stale; it is 140 now (143 measured) and it also checks that all 19 suites that run on load announced themselves.
 - `evelyn_test_runner.html` loads every module and suite; `evelyn_concourse.html` loads `evelyn_lab.js`.
 
 **Safety review of the modules that reach outside the page.** None of the 41 files makes a network call, uses `eval`, `new Function` or `document.write` (checked by search); only the bridge touches the file system or runs programs, and it is described above. The LAN layer pool is an in-memory simulation with no sockets, so it is off and cannot reach a network. The IPS patcher works on bytes of files the learner picks, never changes the original, checks every record against the file size, and ships no ROM or disc data (the tests use made-up files). The Lab page was checked to request nothing outside its own server.
 
 **Checked (2026-11-22):** `node tests/run_all.js`: every step PASS. That includes `neon/evelyn_run_all_tests.js` (27 suites, 0 failed, 0 missing) and the real-browser check (143 checks in the test page, the Lab view's 11 checks, no page errors, no outside requests). The new suites were also run one by one.
 
-**Not checked, and left:** no real console ROMs, discs, `.OBJ` models or `.ips` patches were tried (only made-up files and the file pickers by script, not a person); the bridge was run only in tests and was never exposed to a network, and `tcc` and `python3` runs through it were not tried; no hardware (robot, car, microcontroller) was touched; no phone, old browser or real `TINY.BIN`; the Lab's file pickers were not used with large files; the LAN pool has no real transport; the paper and product names in `CREDITS.md` were taken from the conversations and not checked; there are no C or BASIC editions of any round-2 module.
+**Not checked, and left:** no real console ROMs, discs, `.OBJ` models or `.ips` patches were tried (only made-up files and the file pickers by script, not a person); the bridge was run only in tests and was never exposed to a network, and `tcc` and `python3` runs through it were not tried; no hardware (robot, car, microcontroller) was touched; no phone, old browser or real `TINY.BIN`; the Lab's file pickers were not used with large files; the LAN pool has no real transport; the paper and product names in `CREDITS.md` were taken from the research notes the code was written from and were not checked one by one; there are no C or BASIC editions of any round-2 module.
 
 **Coding shelves (2026-11-22).** `sh tools/fetch_coding_refs.sh <folder>` downloads open-licence coding references (MDN JavaScript, Learn X in Y Minutes, SICP, Eloquent JavaScript, javascript.info, the Node.js and Python 3.13 docs, the Rust book, Think Python) and `node tools/build_shelves.js <folder>` cuts them into short text entries that load with the "+TXT Shelf" button (43 files, about 154,000 entries, 19 MB; searching them through Evelyn's own shelf code was tried). The downloads are not part of this repository; their licences and the terms that apply are in `CREDITS.md` section 5. Evelyn does not train on them: the shelves are indexed text, and the `TNY2` model still needs its own `TINY.BIN`.
 
