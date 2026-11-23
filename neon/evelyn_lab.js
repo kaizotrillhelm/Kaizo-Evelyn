@@ -1,7 +1,7 @@
 /* evelyn_lab.js - The Lab view of the NEON Concourse (pure ES5, no network).
    Gives the round-2 modules a screen: Game X-Ray, Asset Studio (IPS), 3D viewer, Code Forge / AST IDE, and a
    status list of the modules that have no screen of their own (paper boosts, late-2026, agent OS, sovereign local,
-   language core, hybrid RAG, code power, manual compiler, inkling-fast, WASM, code engine).
+   language core, hybrid RAG, code power, manual compiler, window engine, WASM, code engine).
    Every action works on a file the learner picks or on a made-up sample. Nothing is uploaded, nothing is fetched,
    no ROM or disc data ships with Evelyn, and the companion bridge (evelyn_bridge.js) is never started from here. */
 (function (root) {
@@ -258,7 +258,7 @@
     ["EvelynAgentOS", "Agent OS 2027", "evelyn_agent_os_tests.js"], ["EvelynSovereign", "Sovereign Local AI", "evelyn_sovereign_local_tests.js"],
     ["EvelynLangCore", "Language Core", "evelyn_lang_core_tests.js"], ["EvelynHybridRAG", "Hybrid Code RAG", "evelyn_hybrid_rag_tests.js"],
     ["EvelynCodePower", "Code Power", "evelyn_code_power_tests.js"], ["EvelynManualCompiler", "Manual Compiler", "evelyn_manual_compiler_tests.js"],
-    ["EvelynInklingFast", "Inkling-Fast", "evelyn_inkling_fast_tests.js"], ["EvelynWasmAccel", "WASM Accel", "evelyn_turbo_tests.js"],
+    ["EvelynWindowEngine", "Window Engine", "evelyn_window_engine_tests.js"], ["EvelynWasmAccel", "WASM Accel", "evelyn_turbo_tests.js"],
     ["EvelynCodeEngine", "Code Engine", "evelyn_turbo_tests.js"], ["EvelynAST", "AST IDE", "evelyn_turbo_tests.js"],
     ["EvelynGameXRay", "Game X-Ray", "evelyn_game_xray_tests.js"], ["EvelynGameXRayGen6", "Game X-Ray Gen 4-6", "evelyn_game_xray_gen6_tests.js"],
     ["EvelynAssetStudio", "Asset Studio", "evelyn_asset_studio_tests.js"], ["Evelyn3D", "3D Engine", "evelyn_3d_tests.js"],

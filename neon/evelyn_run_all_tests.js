@@ -30,7 +30,7 @@
     { file: "evelyn_paper_boost_tests.js",    label: "19. Paper Boost 1 (CoE, JitRL, FadeMem, Skimmer, Topo-RAG, Traj)" },
     { file: "evelyn_paper_boost2_tests.js",   label: "20. Paper Boost 2 (Conformal, BudgetCascade, Bloom, UCB, Membox)" },
     { file: "evelyn_paper_boost3_tests.js",   label: "21. Paper Boost 3 (DAG, MMR, CacheGuard, TaintCFI, AutoSR)" },
-    { file: "evelyn_inkling_fast_tests.js",   label: "22. Inkling-Fast (5:1 SWA, ShortConv, AttnResid & 3D Inspector)" },
+    { file: "evelyn_window_engine_tests.js",   label: "22. Window Engine (5:1 SWA, ShortConv, AttnResid & 3D Inspector)" },
     { file: "evelyn_late2026_tests.js",       label: "23. Late-2026 Core (Steer, PoseCache, Prosody, LEASH, MCP/A2A)" },
     { file: "evelyn_agent_os_tests.js",       label: "24. Agent OS 2027 (eight platform pillars)" },
     { file: "evelyn_sovereign_local_tests.js",label: "25. Sovereign Local AI (Auto-Bench, Exo LAN Pool, Redactor & Manifest)" },

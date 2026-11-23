@@ -1,16 +1,16 @@
-/* evelyn_inkling_fast_tests.js - Automated ES5 Tests for EvelynInklingFast
-   Run in Node.js: node evelyn_inkling_fast_tests.js */
+/* evelyn_window_engine_tests.js - Automated ES5 Tests for EvelynWindowEngine
+   Run in Node.js: node evelyn_window_engine_tests.js */
 (function (root) {
   "use strict";
 
   var isNode = (typeof module !== "undefined" && typeof require === "function");
   if (isNode) {
     require("./evelyn_3d.js");
-    require("./evelyn_inkling_fast.js");
+    require("./evelyn_window_engine.js");
   }
 
   var E3 = root.Evelyn3D;
-  var IK = root.EvelynInklingFast;
+  var IK = root.EvelynWindowEngine;
   var tests = [];
   function test(name, fn) { tests.push({ name: name, fn: fn }); }
   function assert(cond, msg) { if (!cond) throw new Error(msg || "Assertion failed"); }
@@ -105,9 +105,9 @@
 
   /* 6. ES5 Audit */
   if (isNode) {
-    test("ES5 Audit: Zero ES6+ syntax in evelyn_inkling_fast.js and tests", function (done) {
+    test("ES5 Audit: Zero ES6+ syntax in evelyn_window_engine.js and tests", function (done) {
       var fs = require("fs"), path = require("path");
-      var files = ["evelyn_inkling_fast.js", "evelyn_inkling_fast_tests.js"];
+      var files = ["evelyn_window_engine.js", "evelyn_window_engine_tests.js"];
       var banned = [[/\bArray\.from\s*\(/, "Array.from"], [/\bnew\s+Map\s*\(/, "Map"], [/\bnew\s+Set\s*\(/, "Set"], [/\)\s*=>/, "arrow"], [/\(\?</, "lookbehind"]];
       for (var i = 0; i < files.length; i++) {
         var fp = path.join(__dirname, files[i]);
@@ -122,7 +122,7 @@
   var pass = 0, fail = 0, idx = 0;
   function next() {
     if (idx >= tests.length) {
-      console.log("\n=== INKLING-FAST ENGINE RESULT: " + pass + " passed, " + fail + " failed ===");
+      console.log("\n=== WINDOW ENGINE RESULT: " + pass + " passed, " + fail + " failed ===");
       if (isNode) process.exit(fail > 0 ? 1 : 0);
       return;
     }
@@ -135,6 +135,6 @@
     }
     try { cur.fn(done); } catch (e) { done(e); }
   }
-  console.log("=== EVELYN INKLING-FAST (5:1 SWA, SHORTCONV, ATTN RESIDUALS & 3D VISUAL INSPECTOR) TESTS (" + tests.length + ") ===");
+  console.log("=== EVELYN WINDOW ENGINE (5:1 SWA, SHORTCONV, ATTN RESIDUALS & 3D VISUAL INSPECTOR) TESTS (" + tests.length + ") ===");
   next();
 })(typeof window !== "undefined" ? window : global);

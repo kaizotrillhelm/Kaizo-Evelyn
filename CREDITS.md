@@ -31,7 +31,7 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 
 ## 3. Research
 
-### 3.1 Frontier systems (`neon/evelyn_frontier.js`, `neon/evelyn_inkling_fast.js`)
+### 3.1 Frontier systems (`neon/evelyn_frontier.js`, `neon/evelyn_window_engine.js`)
 
 | Work | As cited | Link | Used for |
 | --- | --- | --- | --- |
@@ -43,7 +43,7 @@ Evelyn is original code. The ideas, formats and reference texts it builds on com
 | XGrammar | Dong et al.; MLSys 2025 | [search](https://arxiv.org/search/?searchtype=all&query=XGrammar) | `GrammarDecoder` (token masking by grammar) |
 | CRANE (grammar-constrained decoding) | ICML 2025 | [search](https://arxiv.org/search/?searchtype=all&query=CRANE%20(grammar-constrained%20decoding)) | alternating free and constrained decoding windows |
 | Activation-Steered Compression | Azizi et al.; NeurIPS 2026 | [search](https://arxiv.org/search/?searchtype=all&query=Activation-Steered%20Compression) | steering ideas in `ActivationSteerer` |
-| Huginn recurrent-depth model | Geiping et al.; February 2025 | [search](https://arxiv.org/search/?searchtype=all&query=Huginn%20recurrent-depth%20model) | `LoopedReasoner`, `evelyn_inkling_fast.js` |
+| Huginn recurrent-depth model | Geiping et al.; February 2025 | [search](https://arxiv.org/search/?searchtype=all&query=Huginn%20recurrent-depth%20model) | `LoopedReasoner`, `evelyn_window_engine.js` |
 | Tiny Recursive Models | NeurIPS 2026 | [search](https://arxiv.org/search/?searchtype=all&query=Tiny%20Recursive%20Models) | `LoopedReasoner` |
 
 ### 3.2 Writing-tic research (`neon/evelyn_voice_guard.js`)

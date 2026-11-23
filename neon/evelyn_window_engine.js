@@ -1,4 +1,4 @@
-/* evelyn_inkling_fast.js - Inkling-Inspired Speed & 3D Coding Systems for Evelyn:
+/* evelyn_window_engine.js - Sliding-Window Speed & 3D Coding Systems for Evelyn:
    1. ShortConv1D          (Causal 4-tap depthwise K/V convolution in 4*D ops)
    2. SlidingWindowRingKV  (Constant-RAM O(W) circular KV ring buffer)
    3. HybridSWAStack       (5:1 Sliding-Window + Global layer scheduler -> ~5x KV/FLOP cut)
@@ -246,7 +246,7 @@
     }
   };
 
-  root.EvelynInklingFast = {
+  root.EvelynWindowEngine = {
     ShortConv1D: ShortConv1D,
     SlidingWindowRingKV: SlidingWindowRingKV,
     HybridSWAStack: HybridSWAStack,

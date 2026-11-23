@@ -98,7 +98,7 @@ step("chum species data is current", function () {
  "evelyn_game_xray_tests", "evelyn_game_xray_gen6_tests", "evelyn_asset_studio_tests", "evelyn_3d_tests",
  "evelyn_code_forge_tests", "evelyn_turbo_tests", "evelyn_hybrid_rag_tests", "evelyn_code_power_tests",
  "evelyn_lang_core_tests", "evelyn_manual_compiler_tests", "evelyn_paper_boost_tests", "evelyn_paper_boost2_tests",
- "evelyn_paper_boost3_tests", "evelyn_inkling_fast_tests", "evelyn_late2026_tests", "evelyn_agent_os_tests",
+ "evelyn_paper_boost3_tests", "evelyn_window_engine_tests", "evelyn_late2026_tests", "evelyn_agent_os_tests",
  "evelyn_sovereign_local_tests", "evelyn_bookgames_tests"].forEach(function (name) {
   step("neon: " + name.replace("evelyn_", ""), function () {
     var r = run(NODE, [path.join(ROOT, "neon", name + ".js")], path.join(ROOT, "neon"));
