@@ -121,7 +121,42 @@ def features(p):
         if im.width != OUTW: frames[i] = (im.resize((OUTW, int(im.height * OUTW / im.width)), Image.LANCZOS), ms)
     save_gif(frames, "evelyn_features.gif", 96)
 
+def book(p):
+    W, H, OUTW = 1000, 620, 800
+    b = p.chromium.launch(executable_path=BRAVE, headless=True, args=["--no-sandbox"])
+    pg = b.new_context(viewport={"width": W, "height": H}).new_page()
+    frames = []
+    def snap(ms=170):
+        frames.append((Image.open(io.BytesIO(pg.screenshot(type="png"))).convert("RGB"), ms))
+    def hold(n, ms=170, gap=0.1):
+        for _ in range(n):
+            snap(ms); time.sleep(gap)
+    pg.goto(base + "evelyn_concourse.html")
+    pg.wait_for_function("document.body.innerText.indexOf('CHUM LOFT') >= 0", timeout=30000)
+    time.sleep(0.8)
+    # a book is loaded with the real +TXT Shelf button and kept whole in the archive
+    story = pg.evaluate("window.EvelynLab.sampleText")
+    pg.set_input_files("#txtFile", {"name": "The_Lantern_Fox.txt", "mimeType": "text/plain", "buffer": story.encode("utf-8")}); time.sleep(0.8)
+    hold(3, 220)
+    pg.click("#viewLab"); pg.click("#labTab-book"); time.sleep(0.5)
+    pg.select_option("#labBookShelf", "b:The_Lantern_Fox"); time.sleep(0.3); hold(2)
+    pg.click("#labBookWish"); pg.keyboard.type("a space battle about the characters", delay=25); hold(1)
+    pg.click("#labBookMake"); time.sleep(0.3); hold(4, 260)
+    pg.click("#labBookPlay"); time.sleep(0.6); hold(6, 200)             # the arcade game, made from the book
+    pg.click("#viewLab"); pg.click("#labTab-book"); time.sleep(0.3)
+    pg.fill("#labBookWish", ""); pg.select_option("#labBookStyle", "detective"); pg.select_option("#labBookFocus", "concepts"); pg.click("#labBookMake"); time.sleep(0.3); hold(3, 240)
+    pg.click("#labBookPlay"); time.sleep(0.6); hold(2, 220)             # a detective game about the same book
+    for _ in range(3):
+        n = pg.evaluate("document.querySelectorAll('#playBtns button').length")
+        if n:
+            pg.click("#playBtns button >> nth=0"); time.sleep(0.35); hold(2, 240)
+    b.close()
+    for i, (im, ms) in enumerate(frames):
+        if im.width != OUTW: frames[i] = (im.resize((OUTW, int(im.height * OUTW / im.width)), Image.LANCZOS), ms)
+    save_gif(frames, "evelyn_book_game.gif", 96)
+
 with sync_playwright() as p:
+    if mode in ("book",): book(p)
     if mode in ("face", "both"): face(p)
     if mode in ("features", "both"): features(p)
 srv.shutdown()

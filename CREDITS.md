@@ -142,6 +142,30 @@ Evelyn's memory is text shelves. The coding shelves were made from the open sour
 | Python 3.13 documentation | https://docs.python.org/3.13/download.html | text archive of 3.13 | [PSF licence](https://docs.python.org/3.13/license.html) | keep the notice |
 | Think Python 2e, Allen Downey | https://github.com/AllenDowney/ThinkPython2 | `cf3d99c` | repository under MIT; the book carries its own licence in its front matter | check the book's front matter before sharing |
 
+### 5b. Reading library (texts fetched for the shelves; not in this repository)
+
+Fetched with `tools/fetch_reading_refs.py` from the `gutenberg.pglaf.org` mirror and the pages below, kept in `G:CandorPixEvelynLibrary` (outside the repository). The Project Gutenberg header and footer were removed from the shelves; if you share these texts with the Project Gutenberg name, follow [its terms](https://www.gutenberg.org/policy/license.html).
+
+| Text | Link | Licence |
+| --- | --- | --- |
+| Aesop's Fables | https://www.gutenberg.org/ebooks/21 | public domain |
+| Alice's Adventures in Wonderland (Lewis Carroll) | https://www.gutenberg.org/ebooks/11 | public domain |
+| The Princess and the Goblin (George MacDonald) | https://www.gutenberg.org/ebooks/34339 | public domain |
+| Beatrix Potter, eight tales (Peter Rabbit, Benjamin Bunny, Tom Kitten, Squirrel Nutkin, Tailor of Gloucester, Samuel Whiskers and two more) | Gutenberg ebooks 14304, 14407, 14814, 14837, 14838, 14868, 14872, 15575 (https://www.gutenberg.org/ebooks/14838 for Peter Rabbit) | public domain (US) |
+| The Declaration of Independence | https://www.gutenberg.org/ebooks/1 and the [National Archives transcription](https://www.archives.gov/founding-docs/declaration-transcript) | public domain; US government work |
+| The Constitution of the United States | https://www.gutenberg.org/ebooks/5 | public domain |
+| The Federalist Papers | https://www.gutenberg.org/ebooks/1404 | public domain |
+| The Law (Frederic Bastiat) | https://www.gutenberg.org/ebooks/44800 | public domain |
+| On Liberty (John Stuart Mill) | https://www.gutenberg.org/ebooks/34901 | public domain |
+| Civil Disobedience (Henry David Thoreau) | https://www.gutenberg.org/ebooks/71 | public domain |
+| Narrative of the Life of Frederick Douglass | https://www.gutenberg.org/ebooks/23 | public domain |
+| The Jungle (Upton Sinclair) | https://www.gutenberg.org/ebooks/140 | public domain (US) |
+| I, Pencil (Leonard E. Read), as hosted by Econlib | https://www.econlib.org/library/Essays/rdPncl1.html | freely published by FEE and Econlib; see the page for terms |
+| Economics in One Lesson (Henry Hazlitt), as hosted by FEE | https://fee.org/ebooks/economics-in-one-lesson/ | free ebook published by FEE; see the page for terms |
+| Where There Is No Dentist, contents page (Hesperian Health Guides) | https://en.hesperian.org/hhg/Where_There_Is_No_Dentist | free for non-commercial use; do not redistribute |
+
+**Asked for but not retrieved, and why.** The Mises Institute page for *Economics in One Lesson* answered 403 to an automated request, so it was not worked around (FEE hosts the same book). Hesperian's *Where There Is No Doctor*, *Water for Life* and *Sanitation and Cleanliness* have no page at the addresses tried, so only the Dentist contents page was saved; their free PDFs are on hesperian.org. The Hillsdale 1776 curriculum, Ashbrook's *Teaching American History* and the Bill of Rights Institute curricula are large sets of pages and downloads behind site navigation, and were not collected. *Flowers and Their Friends* could not be matched to a Gutenberg id.
+
 **Not used, on purpose.**
 - The JavaScript book list at https://github.com/EOEboh/Free-Software-Books/blob/main/books/dev-books/JavaScript/javascript.md links mostly to Google Drive and pdfdrive copies of commercial books (for example Flanagan's *JavaScript: The Definitive Guide*). Those copies are not licensed for download, so none was taken. The titles on it that have an official free edition (Eloquent JavaScript and The JavaScript Language) were taken from their official repositories instead.
 - *You Don't Know JS* (Kyle Simpson, https://github.com/getify/You-Dont-Know-JS) is CC BY-NC-ND 4.0. The no-derivatives term does not allow cutting it into shelves that are then shared, so it is left out.

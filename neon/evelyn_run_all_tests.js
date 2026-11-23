@@ -1,5 +1,5 @@
 /* evelyn_run_all_tests.js - Master Zero-Dependency Test Runner for the Full Evelyn Stack
-   Runs all 26 Evelyn verification suites in order and prints a unified pass/fail report.
+   Runs all 27 Evelyn verification suites in order and prints a unified pass/fail report.
    Usage: node evelyn_run_all_tests.js */
 (function () {
   "use strict";
@@ -34,7 +34,8 @@
     { file: "evelyn_late2026_tests.js",       label: "23. Late-2026 Core (Steer, PoseCache, Prosody, LEASH, MCP/A2A)" },
     { file: "evelyn_agent_os_tests.js",       label: "24. Agent OS 2027 (eight platform pillars)" },
     { file: "evelyn_sovereign_local_tests.js",label: "25. Sovereign Local AI (Auto-Bench, Exo LAN Pool, Redactor & Manifest)" },
-    { file: "evelyn_chums_tests.js",          label: "26. Chum Loft (Echoes and DritchChums: care, friends, kin, races, duels)" }
+    { file: "evelyn_chums_tests.js",          label: "26. Chum Loft (Echoes and DritchChums: care, friends, kin, races, duels)" },
+    { file: "evelyn_bookgames_tests.js",     label: "27. Book Games (a game from any book: characters, ideas, styles, archive)" }
   ];
 
   var passed = 0, failed = 0, missing = 0, tAll = Date.now();

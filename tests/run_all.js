@@ -98,7 +98,7 @@ step("chum species data is current", function () {
  "evelyn_code_forge_tests", "evelyn_turbo_tests", "evelyn_hybrid_rag_tests", "evelyn_code_power_tests",
  "evelyn_lang_core_tests", "evelyn_manual_compiler_tests", "evelyn_paper_boost_tests", "evelyn_paper_boost2_tests",
  "evelyn_paper_boost3_tests", "evelyn_inkling_fast_tests", "evelyn_late2026_tests", "evelyn_agent_os_tests",
- "evelyn_sovereign_local_tests"].forEach(function (name) {
+ "evelyn_sovereign_local_tests", "evelyn_bookgames_tests"].forEach(function (name) {
   step("neon: " + name.replace("evelyn_", ""), function () {
     var r = run(NODE, [path.join(ROOT, "neon", name + ".js")], path.join(ROOT, "neon"));
     var lines = r.out.split("\n");
@@ -106,10 +106,10 @@ step("chum species data is current", function () {
     return { status: r.code === 0 ? "PASS" : "FAIL", note: summary.replace(/=/g, "").trim(), detail: r.code === 0 ? "" : r.out.slice(-3000) };
   });
 });
-step("neon: the chat's own master runner (26 suites)", function () {
+step("neon: the chat's own master runner (27 suites)", function () {
   var r = run(NODE, [path.join(ROOT, "neon", "evelyn_run_all_tests.js")], path.join(ROOT, "neon"));
   var line = r.out.split("\n").filter(function (l) { return /TOTAL:/.test(l); }).pop() || "";
-  var ok = r.code === 0 && /26 passed, 0 failed, 0 missing/.test(line);
+  var ok = r.code === 0 && /27 passed, 0 failed, 0 missing/.test(line);
   return { status: ok ? "PASS" : "FAIL", note: line.replace(/=/g, "").trim(), detail: ok ? "" : r.out.slice(-3000) };
 });
 step("Scar Brand game chum data is current", function () {

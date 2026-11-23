@@ -133,6 +133,7 @@
         <button id="labTab-asset">Asset Studio</button>
         <button id="labTab-view3d">3D Viewer</button>
         <button id="labTab-code">Code Forge &amp; IDE</button>
+        <button id="labTab-book">Book Game</button>
         <button id="labTab-status">Module Status</button>
       </div>
       <div id="lab-xray" class="row">
@@ -170,6 +171,23 @@ function addTwo(a, b) { return a + b; }
 total = addTwo(5);
 let late = ghost + 1;</textarea>
         <div class="row" style="margin-top:6px"><button id="labLint">Check this code (AST IDE)</button></div>
+      </div>
+      <div id="lab-book" class="hidden">
+        <div class="row">
+          <label style="font-size:12px">A book I have read: <select id="labBookShelf" style="max-width:230px"></select></label>
+          <label style="font-size:12px">or a .txt file: <input type="file" id="labBookFile" accept=".txt" style="width:120px"></label>
+          <button id="labBookSample">Use the sample story</button>
+        </div>
+        <div class="row">
+          <label style="font-size:12px">Game: <select id="labBookPreset"></select></label>
+          <label style="font-size:12px">Style <select id="labBookStyle"><option value="auto">auto</option><option value="arcade">arcade</option><option value="detective">detective</option><option value="quiz">quiz show</option></select></label>
+          <label style="font-size:12px">About <select id="labBookFocus"><option value="auto">auto</option><option value="both">both</option><option value="characters">the characters</option><option value="concepts">the ideas and words</option></select></label>
+          <label style="font-size:12px">Questions <input id="labBookCount" type="number" min="4" max="40" value="12" style="width:55px"></label>
+          <label style="font-size:12px">Seed <input id="labBookSeed" value="7" style="width:55px"></label>
+        </div>
+        <div class="row"><input id="labBookWish" style="flex:1" placeholder="Or say what you want: a space battle about the characters, a mystery about the words, a quiz show..."></div>
+        <textarea id="labBookText" style="height:60px" placeholder="...or paste or type any text here (a story, a lesson, your own notes)"></textarea>
+        <div class="row" style="margin-top:6px"><button id="labBookMake" class="active">Make my game</button><button id="labBookPlay">Play it</button><span id="labBookInfo" style="font-size:12px;color:var(--dim)"></span></div>
       </div>
       <div id="lab-status" class="hidden"><pre id="labStatus" class="pre"></pre></div>
       <div id="labOut" class="out" style="min-height:110px;margin-top:8px">Pick a tab, then a file or a sample. The answer appears here.</div>
@@ -253,6 +271,7 @@ let late = ghost + 1;</textarea>
 <script src="evelyn_sovereign_local.js"></script>
 <script src="evelyn_chums_data.js"></script>
 <script src="evelyn_chums.js"></script>
+<script src="evelyn_bookgames.js"></script>
 <script src="evelyn_lab.js"></script>
 <script>
 (function () {
@@ -617,9 +636,15 @@ let late = ghost + 1;</textarea>
     var f = e.target.files[0]; if (!f) return;
     var r = new FileReader();
     r.onload = function () {
-      var n = B.ShelfLibrary.ingestPlainText(r.result, f.name.replace(/\.txt$/i, ""));
+      var bookName = f.name.replace(/\.txt$/i, "");
+      var n = B.ShelfLibrary.ingestPlainText(r.result, bookName);
       B.AudioFX.ok();
       pushChat("<span style='color:var(--mint)'>Indexed " + n + " gap-encoded entries from " + f.name + " into IndexedDB!</span>");
+      /* the shelf keeps 180 characters of each paragraph; the whole book is kept too, so it can become a game later */
+      if (window.EvelynLab && window.EvelynLab.keepBook && String(r.result).length < 6000000) {
+        window.EvelynLab.keepBook(bookName, String(r.result));
+        pushChat("<span style='color:var(--amber)'>Want a game from this book? Open the Lab, choose Book Game, and pick \"" + bookName.replace(/[<>&]/g, "") + "\".</span>");
+      }
       renderParent();
     };
     r.readAsText(f);

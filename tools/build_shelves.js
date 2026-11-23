@@ -137,5 +137,33 @@ SOURCES.forEach(function (S) {
   }
   console.log(S.id + ": " + files.length + " files -> " + out.length + " entries in " + part + " shelf file(s)");
 });
+var TITLES = { "aesop-fables": "Aesop's Fables", "alice-in-wonderland": "Alice's Adventures in Wonderland", "federalist-papers": "The Federalist Papers", "us-constitution": "The Constitution of the United States", "douglass-narrative": "Narrative of the Life of Frederick Douglass", "potter-14304": "Beatrix Potter (Gutenberg 14304)", "potter-14814": "Beatrix Potter (Gutenberg 14814)", "potter-14407": "The Tale of Benjamin Bunny", "potter-14838": "The Tale of Peter Rabbit", "bastiat-the-law": "The Law (Frederic Bastiat)", "mill-on-liberty": "On Liberty (John Stuart Mill)", "sinclair-the-jungle": "The Jungle (Upton Sinclair)", "thoreau-civil-disobedience": "Civil Disobedience (Henry David Thoreau)", "declaration-of-independence": "The Declaration of Independence" };
+/* the reading library: <lib>/_raw/reading/*.txt (made by tools/fetch_reading_refs.py), one shelf set per book */
+(function () {
+  var dir = path.join(raw, "reading"), files;
+  try { files = fs.readdirSync(dir).filter(function (f) { return /\.txt$/.test(f); }).sort(); } catch (e) { return; }
+  files.forEach(function (f) {
+    var txt = fs.readFileSync(path.join(dir, f), "utf8").replace(/\r/g, ""), m = /^Title: (.*)\nSource: (.*)\nLicence: (.*)\n/.exec(txt);
+    if (!m) return;
+    var title = m[1].trim(), body = txt.slice(m[0].length);
+    if (!title) {
+      var cand = body.split("\n").map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 5 && /[A-Z]{3}/.test(l) && !/ILLUSTRATION|FREDERICK|WARNE|BY$/i.test(l); });
+      title = cand.slice(0, 2).join(" ").slice(0, 60);
+    }
+    if (TITLES[f.replace(/.txt$/, "")]) title = TITLES[f.replace(/.txt$/, "")];
+    var out = [], seen = Object.create(null), tmp = [];
+    fromMarkdown("# " + title.replace(/^#+\s*/, "") + "\n\n" + body, tmp);
+    tmp.forEach(function (e) { var k = e.toLowerCase().slice(0, 90); if (!seen[k]) { seen[k] = 1; out.push(e); } });
+    var n = 0, part = 0, id = "reading-" + f.replace(/\.txt$/, "");
+    while (n < out.length) {
+      part++;
+      var chunk = out.slice(n, n + PER_FILE), fname = id + "-" + (part < 10 ? "0" : "") + part + ".txt";
+      fs.writeFileSync(path.join(outDir, fname), chunk.join("\n\n") + "\n");
+      manifest.shelves.push({ file: fname, source: title, url: m[2], licence: m[3], licenceUrl: "", version: "", entries: chunk.length });
+      n += PER_FILE;
+    }
+    console.log(id + ": \"" + title + "\" -> " + out.length + " entries");
+  });
+})();
 fs.writeFileSync(path.join(outDir, "MANIFEST.json"), JSON.stringify(manifest, null, 1));
 console.log("shelf files: " + manifest.shelves.length);

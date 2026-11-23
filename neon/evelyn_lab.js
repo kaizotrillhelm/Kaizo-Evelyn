@@ -35,7 +35,7 @@
   }
 
   /* ---------- panel switching ---------- */
-  var PANELS = ["xray", "asset", "view3d", "code", "status"];
+  var PANELS = ["xray", "asset", "view3d", "code", "book", "status"];
   function showPanel(name) {
     for (var i = 0; i < PANELS.length; i++) {
       $("lab-" + PANELS[i]).classList.toggle("hidden", PANELS[i] !== name);
@@ -43,6 +43,86 @@
     }
     if (name === "status") renderStatus();
     if (name === "view3d") draw3d();
+    if (name === "book") refreshBooks();
+  }
+
+  /* ---------- Book Game: a book the learner has read becomes a game ---------- */
+  var book = null, lastCart = null;
+  var SAMPLE_TITLE = "The Lantern Fox of Pebble Bay";
+  var SAMPLE_TEXT = [
+    "Mira lived in the white house beside the lighthouse. Every evening she climbed the long stairs to polish the great lamp. The lamp shone across the water and guided the fishing boats home.",
+    "One morning Mira found a small orange fox asleep under the lamp. The fox had a tail like a flame and a collar made of silver wire. \"Who are you?\" asked Mira. \"I am the lantern fox,\" said the fox. \"I keep the light warm when the wind is cold.\"",
+    "Tobin was the baker in the village below the hill. Each day Tobin carried warm bread up the path to the lighthouse. \"Your lamp is brighter than ever,\" said Tobin. \"The fox helps me,\" replied Mira.",
+    "The village council did not believe in lantern foxes. The council members said that a lamp needs oil and a wick and nothing more. They sent Tobin to look for tricks.",
+    "Tobin climbed the stairs and counted every step. There were ninety stairs, and at the top the fox was curled up beside the glass. \"This is no trick,\" said Tobin. \"I see a friend who loves the light.\"",
+    "The bay was quiet that night until a storm rolled in from the sea. The wind pushed the waves against the rocks, and the lamp flickered. Mira held the lamp steady while the fox kept the flame warm.",
+    "The fishing boats found the harbor by the shining lamp. Every sailor reached the pier safely before midnight. The bakery sold three hundred loaves that week, and the harbor bell rang for the safe return.",
+    "In the morning the council came to the lighthouse with their notebooks. \"We were wrong,\" said the oldest member. \"A lighthouse needs a keeper and a lantern fox.\" Mira smiled and Tobin passed around the bread.",
+    "From then on the village kept a small lamp in every window. The lamps reminded everyone of the lantern fox and the night of the storm. Children learned to polish glass, to carry bread, and to share light.",
+    "Mira grew up and became the keeper of the great lamp. Tobin baked bread for forty years and taught his grandchildren the lantern song. The fox slept every winter beside the warm glass and woke in the spring."
+  ].join("\n\n");
+
+  function bookInfo(msg) { $("labBookInfo").textContent = msg; }
+  function wordCount(t) { return (String(t).match(/[A-Za-z']+/g) || []).length; }
+  /* the whole text of every book the learner loads stays in their archive (IndexedDB store "books") */
+  function keepBook(name, text) {
+    book = { title: name, text: text };
+    var B = root.EvelynBackend;
+    if (B && B.EvelynDB) B.EvelynDB.put("books", name, { title: name, text: text, words: wordCount(text), savedAt: new Date().toISOString() });
+    if ($("labBookShelf")) refreshBooks(name);
+  }
+  function refreshBooks(select) {
+    var B = root.EvelynBackend, BG = root.EvelynBookGames, sel = $("labBookShelf");
+    if (!B || !BG || !sel) return;
+    B.EvelynDB.getAll("books", function (list) {
+      var keep = select || (sel.value || ""), html = "<option value=\"\">(pick a book)</option>", have = {}, i;
+      for (i = 0; i < list.length; i++) { have[list[i].title] = 1; html += "<option value=\"b:" + String(list[i].title).replace(/[<>&\"]/g, "") + "\">" + String(list[i].title).replace(/[<>&\"]/g, "") + " (full book, " + list[i].words + " words)</option>"; }
+      var shelves = BG.listShelves(B.ShelfLibrary);
+      for (i = 0; i < shelves.length; i++) if (!have[shelves[i].shelf]) html += "<option value=\"s:" + shelves[i].shelf.replace(/[<>&\"]/g, "") + "\">" + shelves[i].shelf.replace(/[<>&\"]/g, "") + " (shelf, " + shelves[i].entries + " entries)</option>";
+      sel.innerHTML = html;
+      if (keep) for (i = 0; i < sel.options.length; i++) if (sel.options[i].value === "b:" + keep || sel.options[i].value === keep) sel.selectedIndex = i;
+    });
+  }
+  function pickBook() {
+    var v = $("labBookShelf").value, B = root.EvelynBackend, BG = root.EvelynBookGames;
+    if (!v) return;
+    if (v.indexOf("b:") === 0) {
+      B.EvelynDB.get("books", v.slice(2), function (rec) {
+        if (rec && rec.text) { book = { title: rec.title, text: rec.text }; bookInfo("Loaded \"" + rec.title + "\" (" + rec.words + " words)."); }
+      });
+    } else {
+      var s = BG.fromShelf(B.ShelfLibrary, v.slice(2));
+      book = { title: s.title, text: s.text };
+      bookInfo("Rebuilt \"" + s.title + "\" from its shelf (" + wordCount(s.text) + " words; a shelf keeps only the start of each paragraph, so a full book makes a better game).");
+    }
+  }
+  function applyPreset() {
+    var id = $("labBookPreset").value, BG = root.EvelynBookGames, ps = BG.presets(), i;
+    for (i = 0; i < ps.length; i++) if (ps[i].id === id) { $("labBookStyle").value = ps[i].style; $("labBookFocus").value = ps[i].focus; }
+  }
+  function makeBookGame() {
+    var BG = root.EvelynBookGames, typed = $("labBookText").value, text, title;
+    if (typed.replace(/\s+/g, " ").trim().length >= 200) { text = typed; title = typed.replace(/\s+/g, " ").trim().split(/[.!?]/)[0].slice(0, 36) || "My text"; }
+    else if (book) { text = book.text; title = book.title; }
+    else { out("Pick a book you have read, choose a .txt file, use the sample story, or paste some text first."); return; }
+    var r = BG.makeGame(text, { title: title, style: $("labBookStyle").value, focus: $("labBookFocus").value, wish: $("labBookWish").value, count: Number($("labBookCount").value) || 12, seed: Number($("labBookSeed").value) || 7, shelf: title });
+    if (!r.ok) { lastCart = null; out("No game this time: " + r.errors.join(" ")); return; }
+    lastCart = r.cart;
+    var kinds = [], k;
+    for (k in r.report.made) kinds.push(r.report.made[k] + " x " + k);
+    out(["Made a game: " + r.cart.title,
+      "Style: " + r.cart.bookGame.style + " (" + r.cart.engine + " engine) | about: " + r.cart.bookGame.focus + " | grade " + r.cart.grade + " | " + r.cart.items.length + " questions",
+      "Questions: " + kinds.join(", "),
+      "Characters found: " + (r.report.characters.slice(0, 8).join(", ") || "none") + (r.report.note ? "\nNote: " + r.report.note : ""),
+      "Every question is cut from the book and every answer is checked against its text. The kid-safe filter is on.",
+      "First question: " + r.cart.items[0].q,
+      "Press Play it."].join("\n"));
+    bookInfo("Ready: " + r.cart.items.length + " questions.");
+  }
+  function playBookGame() {
+    if (!lastCart) { out("Make a game first."); return; }
+    $("wkJson").value = JSON.stringify(lastCart, null, 2);
+    $("wkLoadPlay").click();                        /* the Workshop validates it, saves it in the archive and opens the player */
   }
 
   /* ---------- Game X-Ray ---------- */
@@ -182,7 +262,8 @@
     ["EvelynCodeEngine", "Code Engine", "evelyn_turbo_tests.js"], ["EvelynAST", "AST IDE", "evelyn_turbo_tests.js"],
     ["EvelynGameXRay", "Game X-Ray", "evelyn_game_xray_tests.js"], ["EvelynGameXRayGen6", "Game X-Ray Gen 4-6", "evelyn_game_xray_gen6_tests.js"],
     ["EvelynAssetStudio", "Asset Studio", "evelyn_asset_studio_tests.js"], ["Evelyn3D", "3D Engine", "evelyn_3d_tests.js"],
-    ["EvelynCodeForge", "Code Forge", "evelyn_code_forge_tests.js"]
+    ["EvelynCodeForge", "Code Forge", "evelyn_code_forge_tests.js"],
+    ["EvelynBookGames", "Book Games", "evelyn_bookgames_tests.js"]
   ];
   function renderStatus() {
     var lines = ["Module                      Loaded  Exports  Test file"], i, m, g, n, k;
@@ -215,10 +296,21 @@
     $("lab3dFile").onchange = loadObj;
     $("labSqlRun").onclick = runSql;
     $("labLint").onclick = lintCode;
+    if (root.EvelynBookGames) {
+      var ps = root.EvelynBookGames.presets(), ph = "<option value=\"\">(my own words below)</option>", pi;
+      for (pi = 0; pi < ps.length; pi++) ph += "<option value=\"" + ps[pi].id + "\">" + ps[pi].name + "</option>";
+      $("labBookPreset").innerHTML = ph;
+      $("labBookPreset").onchange = applyPreset;
+      $("labBookShelf").onchange = pickBook;
+      $("labBookFile").onchange = function (ev) { var f = ev.target.files[0]; if (f) readText(f, function (t) { keepBook(f.name.replace(/\.txt$/i, ""), t); bookInfo("Loaded \"" + f.name + "\" (" + wordCount(t) + " words) and kept it in your archive."); }); };
+      $("labBookSample").onclick = function () { book = { title: SAMPLE_TITLE, text: SAMPLE_TEXT }; bookInfo("Sample story ready (" + wordCount(SAMPLE_TEXT) + " words, written for Evelyn)."); };
+      $("labBookMake").onclick = makeBookGame;
+      $("labBookPlay").onclick = playBookGame;
+    }
     showPanel("xray");
   }
 
-  root.EvelynLab = { mount: mount, showPanel: showPanel, sampleNes: sampleNes, onShow: function () { showPanel("xray"); } };
+  root.EvelynLab = { mount: mount, showPanel: showPanel, sampleNes: sampleNes, keepBook: keepBook, sampleText: SAMPLE_TEXT, onShow: function () { showPanel("xray"); } };
   if (doc && doc.readyState !== "loading") mount();
   else if (doc) doc.addEventListener("DOMContentLoaded", mount);
 })(typeof window !== "undefined" ? window : global);
